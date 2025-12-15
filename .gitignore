@@ -1,0 +1,78 @@
+# IDE Settings
+.idea/             # IntelliJ IDEA
+.eclipse/          # Eclipse
+.project
+.classpath
+.settings/
+.vscode/           # VS Code
+*.iml              # IntelliJ modules
+*.ipr
+*.iws
+*.swp
+*~
+.#*
+
+# Build Files
+target/           # Maven output
+build/            # Gradle output
+out/
+*.jar
+*.war
+*.class
+
+# System Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Dependency Directories (Framework-agnostic)
+node_modules/      # Node.js
+bower_components/
+lib/
+bin/
+vendor/            # PHP/Ruby
+venv/              # Python
+env/
+.env.local
+.env*.local
+__pycache__/       # Python
+*.pyc
+*.pyo
+*.egg-info/
+
+# Environment Files
+.env
+.env.local
+.env.*.local
+# Keep example files to document required variables
+!.env.example
+!application.properties.example
+
+# Maven/Gradle Caching
+.gradle/
+.m2/
+dependency-reduced-pom.xml
+.flattened-pom.xml
+
+# Build Tools
+.gradle/
+gradlew/
+mvnw/
+
+# Logs
+logs/
+*.log
+log4j.properties
+
+# Testing & Coverage
+test-reports/
+coverage/
+.coverage
+
+# Temporary Files
+*.tmp
+*.bak
+
+# OS & Editor Backups
+*~
+.\\#*

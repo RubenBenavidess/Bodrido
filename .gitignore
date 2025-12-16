@@ -134,3 +134,5 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/FleetService/.vs
+/.vs

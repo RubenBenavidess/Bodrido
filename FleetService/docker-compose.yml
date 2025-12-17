@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: fleetservice_postgres
+    environment:
+      POSTGRES_USER: fleetUser
+      POSTGRES_PASSWORD: fleetPass123
+      POSTGRES_DB: FleetDB
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fleet_network
+
+  fleetservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fleetservice_api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=FleetDB;Username=postgres;Password=postgres"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - postgres
+    networks:
+      - fleet_network
+
+volumes:
+  postgres_data:
+
+networks:
+  fleet_network:
+    driver: bridge

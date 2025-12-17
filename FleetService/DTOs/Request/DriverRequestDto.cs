@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using FleetService.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace FleetService.DTOs.Request
 {
@@ -11,6 +12,6 @@ namespace FleetService.DTOs.Request
         public required string LicenseNumber { get; set; }
 
         [Required]
-        public required string LicenseCategory { get; set; }
+        public required LicenseCategory LicenseCategory { get; set; }
     }
 }

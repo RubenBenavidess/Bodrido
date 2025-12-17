@@ -1,0 +1,141 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  version: 1.0.0
+  description: Microservicio de Autenticación para LogiFlow
+  contact:
+    name: SotoV
+servers:
+  - url: http://localhost:4000
+    description: Servidor Local
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrar un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+                - role
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum:
+                    - ADMIN
+                    - DRIVER
+                    - CLIENT
+                    - SUPERVISOR
+                vehicle_type:
+                  type: string
+                  enum:
+                    - MOTORCYCLE
+                    - LIGHT_VEHICLE
+                    - TRUCK
+                zone_id:
+                  type: integer
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+        '400':
+          description: Datos inválidos
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    type: object
+  /auth/token/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Renovar Access Token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Tokens renovados
+        '401':
+          description: Refresh Token inválido o expirado
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Cerrar sesión (Revocar token)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Sesión cerrada
+  /auth/verify:
+    get:
+      tags:
+        - Auth
+      summary: Verificar validez del token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token válido
+        '401':
+          description: Token inválido

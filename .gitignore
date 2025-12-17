@@ -26,7 +26,6 @@ Thumbs.db
 Desktop.ini
 
 # Dependency Directories (Framework-agnostic)
-node_modules/      # Node.js
 bower_components/
 lib/
 bin/
@@ -76,3 +75,5 @@ coverage/
 # OS & Editor Backups
 *~
 .\\#*
+
+node_modules/

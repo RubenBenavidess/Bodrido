@@ -77,3 +77,4 @@ coverage/
 .\\#*
 
 node_modules/
+keys/

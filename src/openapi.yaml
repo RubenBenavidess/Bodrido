@@ -14,128 +14,609 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único del usuario
+          example: 1
+        username:
+          type: string
+          description: Nombre de usuario único
+          minLength: 3
+          maxLength: 50
+          example: "juan_perez"
+        email:
+          type: string
+          format: email
+          description: Correo electrónico del usuario
+          example: "juan@example.com"
+        role:
+          type: string
+          description: Rol del usuario en el sistema
+          enum:
+            - ADMIN
+            - DRIVER
+            - CLIENT
+            - SUPERVISOR
+          example: "DRIVER"
+        vehicle_type:
+          type: string
+          description: Tipo de vehículo (solo para conductores)
+          enum:
+            - MOTORCYCLE
+            - LIGHT_VEHICLE
+            - TRUCK
+          example: "LIGHT_VEHICLE"
+        zone_id:
+          type: integer
+          description: ID de la zona asignada
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación del usuario
+          example: "2024-12-16T10:30:00Z"
+    
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - role
+      properties:
+        username:
+          type: string
+          description: Nombre de usuario único
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: "juan_perez"
+        email:
+          type: string
+          format: email
+          description: Correo electrónico válido
+          example: "juan@example.com"
+        password:
+          type: string
+          format: password
+          description: Contraseña (mínimo 8 caracteres)
+          minLength: 8
+          maxLength: 100
+          example: "SecurePass123!"
+        role:
+          type: string
+          description: Rol del usuario
+          enum:
+            - ADMIN
+            - DRIVER
+            - CLIENT
+            - SUPERVISOR
+          example: "DRIVER"
+        vehicle_type:
+          type: string
+          description: Tipo de vehículo (requerido si role es DRIVER)
+          enum:
+            - MOTORCYCLE
+            - LIGHT_VEHICLE
+            - TRUCK
+          example: "LIGHT_VEHICLE"
+        zone_id:
+          type: integer
+          description: ID de zona asignada (requerido si role es DRIVER o SUPERVISOR)
+          minimum: 1
+          example: 5
+    
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Nombre de usuario
+          minLength: 3
+          example: "juan_perez"
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario
+          minLength: 8
+          example: "SecurePass123!"
+    
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indica si el login fue exitoso
+          example: true
+        accessToken:
+          type: string
+          description: Token JWT de acceso (válido por 15 minutos)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: Token JWT de refresco (válido por 7 días)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+    
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Token de refresco válido
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indica si la renovación fue exitosa
+          example: true
+        accessToken:
+          type: string
+          description: Nuevo token de acceso
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: Nuevo token de refresco
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa
+          example: true
+        message:
+          type: string
+          description: Mensaje descriptivo
+          example: "Operación completada exitosamente"
+    
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indica si hubo un error (siempre false)
+          example: false
+        error:
+          type: string
+          description: Tipo de error
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Mensaje de error legible
+          example: "Los datos proporcionados son inválidos"
+        details:
+          type: array
+          description: Detalles adicionales del error
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "email"
+              message:
+                type: string
+                example: "El email no tiene un formato válido"
+    
+    VerifyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        valid:
+          type: boolean
+          description: Indica si el token es válido
+          example: true
+        user:
+          $ref: '#/components/schemas/User'
 paths:
   /auth/register:
     post:
       tags:
         - Auth
       summary: Registrar un nuevo usuario
+      description: Crea una nueva cuenta de usuario en el sistema. Dependiendo del rol, puede requerir información adicional como tipo de vehículo o zona asignada.
+      operationId: registerUser
       requestBody:
         required: true
+        description: Datos del nuevo usuario
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - username
-                - email
-                - password
-                - role
-              properties:
-                username:
-                  type: string
-                email:
-                  type: string
-                password:
-                  type: string
-                role:
-                  type: string
-                  enum:
-                    - ADMIN
-                    - DRIVER
-                    - CLIENT
-                    - SUPERVISOR
-                vehicle_type:
-                  type: string
-                  enum:
-                    - MOTORCYCLE
-                    - LIGHT_VEHICLE
-                    - TRUCK
-                zone_id:
-                  type: integer
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              driver:
+                summary: Registro de conductor
+                value:
+                  username: "carlos_driver"
+                  email: "carlos@example.com"
+                  password: "SecurePass123!"
+                  role: "DRIVER"
+                  vehicle_type: "LIGHT_VEHICLE"
+                  zone_id: 3
+              client:
+                summary: Registro de cliente
+                value:
+                  username: "maria_client"
+                  email: "maria@example.com"
+                  password: "MyPassword456!"
+                  role: "CLIENT"
+              admin:
+                summary: Registro de administrador
+                value:
+                  username: "admin_user"
+                  email: "admin@example.com"
+                  password: "AdminPass789!"
+                  role: "ADMIN"
       responses:
         '201':
           description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+              examples:
+                success:
+                  summary: Usuario creado
+                  value:
+                    success: true
+                    message: "Usuario registrado exitosamente"
+                    user:
+                      id: 42
+                      username: "carlos_driver"
+                      email: "carlos@example.com"
+                      role: "DRIVER"
+                      vehicle_type: "LIGHT_VEHICLE"
+                      zone_id: 3
+                      created_at: "2024-12-16T10:30:00Z"
         '400':
-          description: Datos inválidos
+          description: Datos inválidos o falta información requerida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: Error de validación
+                  value:
+                    success: false
+                    error: "VALIDATION_ERROR"
+                    message: "Los datos proporcionados son inválidos"
+                    details:
+                      - field: "email"
+                        message: "El formato del email es inválido"
+                      - field: "password"
+                        message: "La contraseña debe tener al menos 8 caracteres"
+        '409':
+          description: El usuario o email ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                conflict:
+                  summary: Usuario ya existe
+                  value:
+                    success: false
+                    error: "CONFLICT"
+                    message: "El nombre de usuario o email ya está registrado"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Error del servidor
+                  value:
+                    success: false
+                    error: "INTERNAL_SERVER_ERROR"
+                    message: "Ocurrió un error al procesar la solicitud"
   /auth/login:
     post:
       tags:
         - Auth
       summary: Iniciar sesión
+      description: Autentica a un usuario y retorna tokens JWT (access y refresh) junto con información del usuario.
+      operationId: loginUser
       requestBody:
         required: true
+        description: Credenciales de acceso
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - username
-                - password
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              validLogin:
+                summary: Login válido
+                value:
+                  username: "carlos_driver"
+                  password: "SecurePass123!"
       responses:
         '200':
-          description: Login exitoso
+          description: Login exitoso, retorna tokens y datos del usuario
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  accessToken:
-                    type: string
-                  refreshToken:
-                    type: string
-                  user:
-                    type: object
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  summary: Login exitoso
+                  value:
+                    success: true
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ1c2VybmFtZSI6ImNhcmxvc19kcml2ZXIiLCJyb2xlIjoiRFJJVkVSIiwiaWF0IjoxNzAyNzM0MDAwLCJleHAiOjE3MDI3MzQ5MDB9.abc123"
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcwMjczNDAwMCwiZXhwIjoxNzAzMzM4ODAwfQ.def456"
+                    user:
+                      id: 42
+                      username: "carlos_driver"
+                      email: "carlos@example.com"
+                      role: "DRIVER"
+                      vehicle_type: "LIGHT_VEHICLE"
+                      zone_id: 3
+                      created_at: "2024-12-10T10:30:00Z"
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  summary: Usuario o contraseña incorrectos
+                  value:
+                    success: false
+                    error: "UNAUTHORIZED"
+                    message: "Usuario o contraseña incorrectos"
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFields:
+                  summary: Campos faltantes
+                  value:
+                    success: false
+                    error: "VALIDATION_ERROR"
+                    message: "Se requieren username y password"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Error del servidor
+                  value:
+                    success: false
+                    error: "INTERNAL_SERVER_ERROR"
+                    message: "Error al procesar la autenticación"
   /auth/token/refresh:
     post:
       tags:
         - Auth
       summary: Renovar Access Token
+      description: Genera un nuevo par de tokens (access y refresh) utilizando un refresh token válido.
+      operationId: refreshToken
       requestBody:
+        required: true
+        description: Refresh token válido
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              validRefresh:
+                summary: Token de refresco válido
+                value:
+                  refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcwMjczNDAwMCwiZXhwIjoxNzAzMzM4ODAwfQ.def456"
       responses:
         '200':
-          description: Tokens renovados
+          description: Tokens renovados exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+              examples:
+                success:
+                  summary: Renovación exitosa
+                  value:
+                    success: true
+                    accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ1c2VybmFtZSI6ImNhcmxvc19kcml2ZXIiLCJyb2xlIjoiRFJJVkVSIiwiaWF0IjoxNzAyNzM1MDAwLCJleHAiOjE3MDI3MzU5MDB9.xyz789"
+                    refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcwMjczNTAwMCwiZXhwIjoxNzAzMzM5ODAwfQ.uvw012"
         '401':
-          description: Refresh Token inválido o expirado
+          description: Refresh Token inválido, expirado o revocado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: Token inválido
+                  value:
+                    success: false
+                    error: "UNAUTHORIZED"
+                    message: "El refresh token es inválido o ha expirado"
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingToken:
+                  summary: Token faltante
+                  value:
+                    success: false
+                    error: "VALIDATION_ERROR"
+                    message: "Se requiere un refresh token"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Error del servidor
+                  value:
+                    success: false
+                    error: "INTERNAL_SERVER_ERROR"
+                    message: "Error al renovar los tokens"
   /auth/logout:
     post:
       tags:
         - Auth
-      summary: Cerrar sesión (Revocar token)
+      summary: Cerrar sesión
+      description: Revoca el refresh token del usuario, invalidando la sesión actual.
+      operationId: logoutUser
       requestBody:
+        required: true
+        description: Refresh token a revocar
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              validLogout:
+                summary: Logout con token válido
+                value:
+                  refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQyLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTcwMjczNDAwMCwiZXhwIjoxNzAzMzM4ODAwfQ.def456"
       responses:
         '200':
-          description: Sesión cerrada
+          description: Sesión cerrada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  summary: Logout exitoso
+                  value:
+                    success: true
+                    message: "Sesión cerrada exitosamente"
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingToken:
+                  summary: Token faltante
+                  value:
+                    success: false
+                    error: "VALIDATION_ERROR"
+                    message: "Se requiere un refresh token"
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: Token inválido
+                  value:
+                    success: false
+                    error: "UNAUTHORIZED"
+                    message: "El refresh token no es válido"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Error del servidor
+                  value:
+                    success: false
+                    error: "INTERNAL_SERVER_ERROR"
+                    message: "Error al cerrar la sesión"
   /auth/verify:
     get:
       tags:
         - Auth
       summary: Verificar validez del token
+      description: Verifica si el access token proporcionado en el header Authorization es válido y retorna información del usuario asociado.
+      operationId: verifyToken
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Token válido
+          description: Token válido, retorna información del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+              examples:
+                validToken:
+                  summary: Token válido
+                  value:
+                    success: true
+                    valid: true
+                    user:
+                      id: 42
+                      username: "carlos_driver"
+                      email: "carlos@example.com"
+                      role: "DRIVER"
+                      vehicle_type: "LIGHT_VEHICLE"
+                      zone_id: 3
+                      created_at: "2024-12-10T10:30:00Z"
         '401':
-          description: Token inválido
+          description: Token inválido, expirado o faltante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingToken:
+                  summary: Token faltante
+                  value:
+                    success: false
+                    error: "UNAUTHORIZED"
+                    message: "No se proporcionó un token de autenticación"
+                invalidToken:
+                  summary: Token inválido
+                  value:
+                    success: false
+                    error: "UNAUTHORIZED"
+                    message: "El token es inválido o ha expirado"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Error del servidor
+                  value:
+                    success: false
+                    error: "INTERNAL_SERVER_ERROR"
+                    message: "Error al verificar el token"

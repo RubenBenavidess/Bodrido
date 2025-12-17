@@ -3,24 +3,31 @@ import { sequelize } from "../config/db.js";
 import Role from "../models/Role.js";
 import Permission from "../models/Permission.js";
 import Zone from "../models/Zone.js";
-import defineAssociations from "../models/associations.js"; // Importa tus asociaciones
+import defineAssociations from "../models/associations.js";
 
 async function seed() {
     try {
         await sequelize.authenticate();
-        defineAssociations(); // Importante definir relaciones antes de sincronizar
-        await sequelize.sync({ force: true }); // OJO: force:true BORRA TODO y crea de cero. Solo para seed inicial.
+        defineAssociations();
+        await sequelize.sync({ force: true });
 
         console.log("Iniciando Seed...");
 
-        // 1. Crear Permisos (Scopes)
-        const p1 = await Permission.create({ slug: "order:create", description: "Crear pedidos" });
-        const p2 = await Permission.create({ slug: "order:update", description: "Actualizar pedidos" });
-        const p3 = await Permission.create({ slug: "order:view", description: "Ver pedidos" });
-        const p4 = await Permission.create({ slug: "order:view_nopicked", description: "Ver pedidos no recogidos" });
-        const p5 = await Permission.create({ slug: "fleet:create", description: "Crear flota" });
-        const p6 = await Permission.create({ slug: "fleet:update", description: "Actualizar flota" });
-        const p7 = await Permission.create({ slug: "fleet:view", description: "Ver flota" });
+        // 1. Crear Permisos
+        // order:view -> Ahora será "Ver TODOS los pedidos" (Admin)
+        const p_view_all = await Permission.create({ slug: "order:view", description: "Ver todos los pedidos" });
+        
+        // NUEVO PERMISO: order:view_own -> Para que el cliente vea SUS pedidos
+        const p_view_own = await Permission.create({ slug: "order:view_own", description: "Ver mis pedidos" });
+
+        const p_create = await Permission.create({ slug: "order:create", description: "Crear pedidos" });
+        const p_update = await Permission.create({ slug: "order:update", description: "Actualizar pedidos" });
+        const p_view_nopicked = await Permission.create({ slug: "order:view_nopicked", description: "Ver pedidos no recogidos" });
+        
+        // Permisos de Flota
+        const p_fleet_create = await Permission.create({ slug: "fleet:create", description: "Crear flota" });
+        const p_fleet_update = await Permission.create({ slug: "fleet:update", description: "Actualizar flota" });
+        const p_fleet_view = await Permission.create({ slug: "fleet:view", description: "Ver flota" });
 
         // 2. Crear Roles
         const roleAdmin = await Role.create({ name: "ADMIN" });
@@ -28,11 +35,19 @@ async function seed() {
         const roleClient = await Role.create({ name: "CLIENT" });
         const roleSuper = await Role.create({ name: "SUPERVISOR" });
 
-        // 3. Asignar Permisos a Roles (Magia de Sequelize)
-        await roleAdmin.addPermissions([p1, p2, p3, p4, p5, p6, p7]); // Admin hace todo
-        await roleSuper.addPermissions([p2, p3, p5, p6]);      // Supervisor ve y actualiza pedidos y flota
-        await roleDriver.addPermissions([p4]);              // Driver ve pedidoss no recogidos
-        await roleClient.addPermissions([p1, p3]);       // Cliente crea y ve pedidos
+        // 3. Asignar Permisos
+        // ADMIN: Tiene acceso total (incluyendo order:view para ver todo)
+        await roleAdmin.addPermissions([p_view_all, p_create, p_update, p_view_nopicked, p_fleet_create, p_fleet_update, p_fleet_view]);
+        
+        // SUPERVISOR: Ve todo y actualiza (según tu lógica anterior)
+        await roleSuper.addPermissions([p_view_all, p_update, p_fleet_create, p_fleet_update]);
+
+        // DRIVER: Solo ve lo no recogido
+        await roleDriver.addPermissions([p_view_nopicked]);
+
+        // CLIENTE: CAMBIO IMPORTANTE
+        // Ya NO tiene p_view_all ("order:view"). Ahora tiene p_view_own ("order:view_own")
+        await roleClient.addPermissions([p_create, p_view_own]);
 
         // 4. Crear Zonas
         await Zone.create({ nombre_ciudad: "Quito", zona_geo: "NORTE" });
@@ -40,7 +55,7 @@ async function seed() {
         await Zone.create({ nombre_ciudad: "Quito", zona_geo: "CENTRO" });
         await Zone.create({ nombre_ciudad: "Guayaquil", zona_geo: "NORTE" });
 
-        console.log("Seed completado con éxito.");
+        console.log("Seed completado. Permisos actualizados correctamente.");
         process.exit();
     } catch (error) {
         console.error("Error en el seed:", error);

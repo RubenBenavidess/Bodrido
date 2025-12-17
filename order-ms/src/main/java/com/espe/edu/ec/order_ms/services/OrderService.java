@@ -3,6 +3,7 @@ package com.espe.edu.ec.order_ms.services;
 import java.util.List;
 import java.util.UUID;
 
+import com.espe.edu.ec.order_ms.dtos.AssignDriverRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderResponse;
@@ -15,5 +16,7 @@ public interface OrderService {
     boolean orderExists(UUID id);
     OrderResponse patchOrder(UUID id, OrderPatchRequest orderPatchRequest);
     void cancelOrder(UUID id);
+    List<OrderResponse> getOrdersByCustomer(UUID customerId);
+    OrderResponse assignDriverAndVehicle(UUID orderId, AssignDriverRequest request);
 
 }

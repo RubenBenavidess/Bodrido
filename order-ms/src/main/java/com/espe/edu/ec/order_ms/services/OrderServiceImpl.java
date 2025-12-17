@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.espe.edu.ec.order_ms.dtos.AssignDriverRequest;
 import com.espe.edu.ec.order_ms.dtos.DeliveryOrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderRequest;
@@ -109,6 +110,36 @@ public class OrderServiceImpl implements OrderService {
         }else{
             throw new IllegalStateException("Una orden solo puede ser cancelada si fue creada o si fue recogida.");
         }
+    }
+
+    @Override
+    public List<OrderResponse> getOrdersByCustomer(UUID customerId) {
+        return orderRepository.findByCustomerId(customerId)
+            .stream()
+            .map(OrderMapper::entityToOrderResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse assignDriverAndVehicle(UUID orderId, AssignDriverRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        
+        if (OrderStatus.CANCELLED.equals(order.getStatus()))
+           throw new IllegalStateException("No se puede asignar recursos a una orden cancelada.");
+        
+
+        order.setDriverId(request.getDriverId());
+        order.setVehicleId(request.getVehicleId());
+        
+        // Nota: No cambiamos el estado automáticamente a menos que sea un requerimiento.
+        // Si quisieras que pase a "IN_ROUTE" o similar, descomenta abajo:
+        // order.setStatus(OrderStatus.IN_ROUTE); 
+
+        Order updatedOrder = orderRepository.save(order);
+        return OrderMapper.entityToOrderResponse(updatedOrder);
     }
 
     /**

@@ -67,7 +67,6 @@ public class SecurityConfig {
             ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(keySpec);
 
             // 3. Configurar procesador para ES256 (ECDSA)
-            // Esto soluciona el error de "withPublicKey" que solo acepta RSA por defecto
             DefaultJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
             JWSKeySelector<SecurityContext> jwsKeySelector = 
                     new SingleKeyJWSKeySelector<>(JWSAlgorithm.ES256, publicKey);

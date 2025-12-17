@@ -65,6 +65,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public boolean orderExists(UUID id){
+        return getOrder(id) == null ? false : true;
+    }
+
+    @Override
     @Transactional
     public OrderResponse patchOrder(UUID id, OrderPatchRequest orderPatchRequest) {
         
@@ -74,13 +79,15 @@ public class OrderServiceImpl implements OrderService {
         if (!OrderStatus.CREATED.equals(foundOrder.getStatus()))
             throw new IllegalStateException("Solo se pueden editar pedidos en estado CREATED");
         
-        if (orderPatchRequest.getInstructions() != null)
-            foundOrder.getDeliveryAddress().setInstructions(orderPatchRequest.getInstructions());
-        
         if(orderPatchRequest instanceof DeliveryOrderPatchRequest deliveryOrderPatchRequest){
+
+            foundOrder.getDeliveryAddress().setInstructions(orderPatchRequest.getInstructions());
+
             if (deliveryOrderPatchRequest.getNewCoordinates() != null) 
                 foundOrder.getDeliveryAddress().setCoordinates(deliveryOrderPatchRequest.getNewCoordinates());
         }
+
+        // TODO: Implement Pickup Patch Request
 
         Order updatedOrder = orderRepository.save(foundOrder);
         return OrderMapper.entityToOrderResponse(updatedOrder);
@@ -95,11 +102,13 @@ public class OrderServiceImpl implements OrderService {
         Order foundOrder = orderRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + id));
 
-        if (OrderStatus.CREATED.equals(foundOrder.getStatus())) {
+        if (OrderStatus.CREATED.equals(foundOrder.getStatus()) || OrderStatus.PICKED_UP.equals(foundOrder.getStatus())) {
             log.info("Cancelación local inmediata para pedido: {}", id);
             foundOrder.setStatus(OrderStatus.CANCELLED);
             orderRepository.save(foundOrder);
-        } 
+        }else{
+            throw new IllegalStateException("Una orden solo puede ser cancelada si fue creada o si fue recogida.");
+        }
     }
 
     /**

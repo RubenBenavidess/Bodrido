@@ -12,6 +12,7 @@ public interface OrderService {
     OrderResponse createOrder(OrderRequest orderRequest);
     OrderResponse getOrder(UUID id);
     List<OrderResponse> getOrders();
+    boolean orderExists(UUID id);
     OrderResponse patchOrder(UUID id, OrderPatchRequest orderPatchRequest);
     void cancelOrder(UUID id);
 

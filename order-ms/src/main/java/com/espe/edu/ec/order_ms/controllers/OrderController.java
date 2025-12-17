@@ -77,7 +77,7 @@ public class OrderController {
     @PatchMapping("/{id}")
     public ResponseEntity<OrderResponse> patchOrder(
             @PathVariable UUID id, 
-            @RequestBody DeliveryOrderPatchRequest patchRequest) {
+            @RequestBody @Valid DeliveryOrderPatchRequest patchRequest) {
         OrderResponse response = orderService.patchOrder(id, patchRequest);
         return ResponseEntity.ok(response);
     }

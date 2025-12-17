@@ -1,0 +1,20 @@
+_format_version: "3.0"
+
+services:
+  - name: auth-service
+    # TRUCO: Apuntamos a /auth para que se complete la ruta correctamente
+    url: http://host.docker.internal:4000/auth
+    routes:
+      - name: auth-route
+        paths:
+          - /api/auth
+        strip_path: true # Kong quita "/api/auth" de la URL
+
+    # Plugin de Rate Limiting (100 peticiones/minuto)
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+ 
+  

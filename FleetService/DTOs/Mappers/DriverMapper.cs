@@ -23,6 +23,7 @@ namespace FleetService.DTOs.Mappers
                 Id = entity.Id,
                 UserId = entity.UserId,
                 LicenseNumber = entity.LicenseNumber,
+                LicenseCategory = entity.LicenseCategory,
                 Status = entity.Status,
                 CurrentVehicleId = entity.CurrentVehicleId,
                 CurrentVehiclePlate = entity.CurrentVehicle?.Plate

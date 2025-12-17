@@ -17,6 +17,10 @@ namespace FleetService.Data.Configs
                    .IsRequired()
                    .HasMaxLength(20);
 
+            builder.Property(d => d.LicenseCategory)
+                   .IsRequired()
+                   .HasConversion<string>();
+
             builder.Property(d => d.LastLocation)
                    .HasColumnType("jsonb");
         }

@@ -20,7 +20,7 @@ services:
     container_name: fleetservice_api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=FleetDB;Username=postgres;Password=postgres"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=FleetDB;Username=fleetUser;Password=fleetPass123"
     ports:
       - "8080:8080"
       - "8081:8081"

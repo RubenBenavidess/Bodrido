@@ -1,13 +1,13 @@
 services:
   postgres:
-    image: postgres:17
+    image: postgres:15-alpine
     container_name: fleetservice_postgres
     environment:
       POSTGRES_USER: fleetUser
       POSTGRES_PASSWORD: fleetPass123
       POSTGRES_DB: FleetDB
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -20,7 +20,7 @@ services:
     container_name: fleetservice_api
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=FleetDB;Username=fleetUser;Password=fleetPass123"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5433;Database=FleetDB;Username=fleetUser;Password=fleetPass123"
     ports:
       - "8080:8080"
       - "8081:8081"

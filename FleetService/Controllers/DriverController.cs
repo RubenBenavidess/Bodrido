@@ -8,9 +8,11 @@ namespace FleetService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class DriverController(IDriverService _driverService) : ControllerBase
     {
         [HttpGet]
+        [Authorize(Policy = "FleetView")]
         public async Task<IActionResult> GetAll([FromQuery] DriverStatus? status = null, [FromQuery] LicenseCategory? licenseCategory = null)
         {
             var drivers = await _driverService.GetAllDriversAsync(status, licenseCategory);
@@ -18,6 +20,7 @@ namespace FleetService.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "FleetCreate")]
         public async Task<IActionResult> RegisterDriver([FromBody] DriverRequestDto requestDto)
         {
             try
@@ -41,6 +44,7 @@ namespace FleetService.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "FleetView")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var driver = await _driverService.GetDriverByIdAsync(id);
@@ -52,6 +56,7 @@ namespace FleetService.Controllers
         }
 
         [HttpGet("user/{userId}")]
+        [Authorize(Policy = "FleetView")]
         public async Task<IActionResult> GetByUserId(Guid userId)
         {
             var driver = await _driverService.GetDriverByUserIdAsync(userId);
@@ -63,6 +68,7 @@ namespace FleetService.Controllers
         }
 
         [HttpPatch("{id}/status")]
+        [Authorize(Policy = "FleetUpdate")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateDriverStatusDto requestDto)
         {
             try

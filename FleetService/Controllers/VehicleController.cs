@@ -6,10 +6,11 @@ namespace FleetService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
+    [Authorize]
     public class VehicleController(IVehicleService _vehicleService) : ControllerBase
     {
         [HttpGet]
+        [Authorize(Policy = "FleetView")]
         public async Task<IActionResult> GetAll()
         {
             var vehicles = await _vehicleService.GetAllVehiclesAsync();
@@ -17,6 +18,7 @@ namespace FleetService.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "FleetView")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var vehicle = await _vehicleService.GetVehicleByIdAsync(id);
@@ -28,7 +30,7 @@ namespace FleetService.Controllers
         }
 
         [HttpPost]
-        //[Authorize(Policy = "RequireAdmin")]
+        [Authorize(Policy = "FleetCreate")]
         public async Task<IActionResult> Create([FromBody] DTOs.Request.VehicleRequestDto requestDto)
         {
             try

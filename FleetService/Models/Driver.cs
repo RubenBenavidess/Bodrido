@@ -16,8 +16,7 @@ namespace FleetService.Models
         public required string LicenseNumber { get; set; }
 
         [Required]
-        [MaxLength(2)]
-        public required string LicenseCategory { get; set; }
+        public required LicenseCategory LicenseCategory { get; set; }
 
         public Guid? CurrentVehicleId { get; set; }
 

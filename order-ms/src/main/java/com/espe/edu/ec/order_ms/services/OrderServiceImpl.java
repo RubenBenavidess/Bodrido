@@ -2,7 +2,7 @@ package com.espe.edu.ec.order_ms.services;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.MissingFormatArgumentException;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -11,7 +11,6 @@ import com.espe.edu.ec.order_ms.dtos.DeliveryOrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderResponse;
-import com.espe.edu.ec.order_ms.event_producers.DriverEventProducer;
 import com.espe.edu.ec.order_ms.mappers.OrderMapper;
 import com.espe.edu.ec.order_ms.model_enums.OrderStatus;
 import com.espe.edu.ec.order_ms.model_enums.VehicleType;
@@ -32,7 +31,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final TariffRepository tariffRepository;
-    private final DriverEventProducer driverEventProducer;
+    // private final DriverEventProducer driverEventProducer;
 
     @Override
     @Transactional
@@ -41,7 +40,7 @@ public class OrderServiceImpl implements OrderService {
         log.info("Iniciando creación de pedido para cliente: {}", orderRequest.getCustomerId());
 
         Order order = OrderMapper.orderRequestToEntity(orderRequest);
-        recalculateOrderValues(order, orderRequest.getVehicleType());
+        calculateOrderValues(order, orderRequest.getVehicleType());
         
         Order newOrder = orderRepository.save(order);
         return OrderMapper.entityToOrderResponse(newOrder);
@@ -49,13 +48,20 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional
     public OrderResponse getOrder(UUID id) {
 
         Order foundOrder = orderRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + id));
         return OrderMapper.entityToOrderResponse(foundOrder);
 
+    }
+
+    @Override
+    public List<OrderResponse> getOrders() {
+        return orderRepository.findAll()
+            .stream()
+            .map(OrderMapper::entityToOrderResponse) 
+            .toList();
     }
 
     @Override
@@ -104,7 +110,7 @@ public class OrderServiceImpl implements OrderService {
      * - Service Fee
      * - Total Amount
      */
-    private void recalculateOrderValues(Order order, VehicleType vehicleType) {
+    private void calculateOrderValues(Order order, VehicleType vehicleType) {
         
         double distance = OrderUtils.calculateDistance(order.getPickupAddress(), order.getDeliveryAddress());
         BigDecimal distanceBd = BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP);
@@ -123,6 +129,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTripFee(tripFee);
         order.setServiceFee(serviceFee);
         order.setTotalAmount(totalAmount);
+        order.setStatus(OrderStatus.CREATED);
     }
 
     // Clase utilitaria interna (privada y final según buenas prácticas anteriores)

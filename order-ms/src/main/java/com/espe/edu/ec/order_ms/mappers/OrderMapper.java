@@ -1,8 +1,11 @@
 package com.espe.edu.ec.order_ms.mappers;
 
+import java.util.List;
+
 import com.espe.edu.ec.order_ms.dtos.OrderRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderResponse;
 import com.espe.edu.ec.order_ms.models.Order;
+import com.espe.edu.ec.order_ms.models.OrderItem;
 
 public final class OrderMapper {
 
@@ -16,17 +19,18 @@ public final class OrderMapper {
         if(orderRequest.getCustomerId() == null) throw new IllegalArgumentException("Datos de pedido inválidos.");
 
         Order newOrder = Order.builder()
-            .customerId(orderRequest.getCustomerId())
-            .pickupAddress(orderRequest.getPickupAddress())
-            .deliveryAddress(orderRequest.getDeliveryAddress())
-            .build();
+                .customerId(orderRequest.getCustomerId())
+                .pickupAddress(orderRequest.getPickupAddress())
+                .deliveryAddress(orderRequest.getDeliveryAddress())
+                .build();
 
-        newOrder.setItems(
-            orderRequest.getItems()
+        List<OrderItem> items = orderRequest.getItems()
                 .stream()
                 .map(OrderItemMapper::orderItemRequestToEntity)
-                .toList() 
-        );
+                .peek(item -> item.setOrder(newOrder)) 
+                .toList();
+
+        newOrder.setItems(items);
             
         return newOrder;
 

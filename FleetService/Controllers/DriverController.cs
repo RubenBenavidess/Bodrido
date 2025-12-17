@@ -10,6 +10,13 @@ namespace FleetService.Controllers
     [Route("api/[controller]")]
     public class DriverController(IDriverService _driverService) : ControllerBase
     {
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] DriverStatus? status = null, [FromQuery] LicenseCategory? licenseCategory = null)
+        {
+            var drivers = await _driverService.GetAllDriversAsync(status, licenseCategory);
+            return Ok(drivers);
+        }
+
         [HttpPost]
         public async Task<IActionResult> RegisterDriver([FromBody] DriverRequestDto requestDto)
         {
@@ -56,11 +63,11 @@ namespace FleetService.Controllers
         }
 
         [HttpPatch("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] DriverStatus newStatus)
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateDriverStatusDto requestDto)
         {
             try
             {
-                var updatedDriver = await _driverService.UpdateDriverStatusAsync(id, newStatus);
+                var updatedDriver = await _driverService.UpdateDriverStatusAsync(id, requestDto.Status);
                 if (updatedDriver == null)
                 {
                     return NotFound();

@@ -1,0 +1,36 @@
+# .dockerignore para el proyecto raíz
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+docker-compose*.yaml
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Documentación
+README.md
+*.md
+docs/
+
+# Archivos temporales
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db

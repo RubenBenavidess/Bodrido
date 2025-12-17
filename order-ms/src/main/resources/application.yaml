@@ -31,4 +31,4 @@ spring:
             readTimeout: 5000
 
 jwt:
-  public-key-path: classpath:keys/ec_public.pem # Ruta a la llave pública
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/ec_public.pem} # Ruta a la llave pública

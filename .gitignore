@@ -136,3 +136,6 @@ nunit-*.xml
 /FleetService/.vs
 /.vs
 /FleetService/appsettings.json
+
+*/node_modules/
+*/keys/

@@ -1,20 +1,72 @@
 _format_version: "3.0"
 
 services:
+  # ============================================
+  # AUTH SERVICE (Node.js - Puerto 4000)
+  # ============================================
   - name: auth-service
-    # TRUCO: Apuntamos a /auth para que se complete la ruta correctamente
-    url: http://host.docker.internal:4000/auth
+    url: http://auth-service:4000/auth
     routes:
       - name: auth-route
         paths:
           - /api/auth
-        strip_path: true # Kong quita "/api/auth" de la URL
-
-    # Plugin de Rate Limiting (100 peticiones/minuto)
+        strip_path: true
     plugins:
       - name: rate-limiting
         config:
           minute: 100
           policy: local
- 
-  
+
+  # ============================================
+  # FLEET SERVICE (.NET - Puerto 8080)
+  # Rutas: /api/driver, /api/vehicle
+  # Acceso via Kong: /api/fleet/api/driver, /api/fleet/api/vehicle
+  # ============================================
+  - name: fleet-service
+    url: http://fleet-service:8080
+    routes:
+      - name: fleet-route
+        paths:
+          - /api/fleet
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+
+  # ============================================
+  # ORDER SERVICE (Java Spring Boot - Puerto 8080)
+  # Rutas internas: /orders
+  # Acceso via Kong: /api/orders/orders
+  # ============================================
+  - name: order-service
+    url: http://order-service:8080
+    routes:
+      - name: order-route
+        paths:
+          - /api/orders
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+
+  # ============================================
+  # BILLING SERVICE (Java Spring Boot - Puerto 8081)
+  # Rutas internas: /invoices
+  # Acceso via Kong: /api/billing/invoices
+  # ============================================
+  - name: billing-service
+    url: http://billing-service:8081
+    routes:
+      - name: billing-route
+        paths:
+          - /api/billing
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local

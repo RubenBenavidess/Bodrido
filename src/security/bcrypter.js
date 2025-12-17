@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 // Función para encriptar la contraseña (hashPassword)
 export async function hashPassword(password) {

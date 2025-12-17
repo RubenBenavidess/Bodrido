@@ -6,7 +6,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-@FeignClient(name = "order-ms", url = "http://localhost:8080")
+@FeignClient(name = "order-ms", url = "${ORDER_SERVICE_URL:http://order-service:8080}")
 public interface OrderEventProducer {
 
     @PostMapping("/orders/exists/{id}")

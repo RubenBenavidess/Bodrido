@@ -4,6 +4,8 @@ public enum OrderStatus {
     CREATED, 
     PICKED_UP, 
     IN_ROUTE, 
-    DELIVERED, 
+    DELIVERED,
+    CANCELLED_BY_DELIVERY, 
+    CANCELLATION_IN_PROGRESS,
     CANCELLED
 }

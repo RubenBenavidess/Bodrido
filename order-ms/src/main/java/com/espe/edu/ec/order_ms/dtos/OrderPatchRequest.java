@@ -10,6 +10,5 @@ import lombok.NoArgsConstructor;
 public abstract class OrderPatchRequest {
 
     private String instructions;
-    private String reason;
 
 }

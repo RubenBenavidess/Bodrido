@@ -56,11 +56,11 @@ public class Order {
     private BigDecimal totalAmount;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "delivery_address", columnDefinition = "jsonb")
+    @Column(name = "delivery_address", columnDefinition = "jsonb", nullable = false)
     private Address deliveryAddress;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "pickup_address", columnDefinition = "jsonb")
+    @Column(name = "pickup_address", columnDefinition = "jsonb", nullable = false)
     private Address pickupAddress;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -68,17 +68,11 @@ public class Order {
     private List<OrderItem> items = new ArrayList<>();
 
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-    
-    // Método helper para añadir items y mantener la consistencia bidireccional
-    public void addItem(OrderItem item) {
-        items.add(item);
-        item.setOrder(this);
-    }
 
 }

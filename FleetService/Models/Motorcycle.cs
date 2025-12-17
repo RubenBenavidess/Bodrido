@@ -1,4 +1,4 @@
-﻿\namespace FleetService.Models
+﻿namespace FleetService.Models
 {
     public class Motorcycle : Vehicle
     {

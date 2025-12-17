@@ -9,15 +9,15 @@ namespace FleetService.Models
         public Guid Id { get; set; } = Guid.NewGuid();
 
         [Required]
-        public Guid UserId { get; set; }
+        public required Guid UserId { get; set; }
 
         [Required]
         [MaxLength(20)]
-        public string LicenseNumber { get; set; } = string.Empty;
+        public required string LicenseNumber { get; set; }
 
+        [Required]
         [MaxLength(2)]
-        public string LicenseCategory { get; set; } = string.Empty;
-
+        public required string LicenseCategory { get; set; }
 
         public Guid? CurrentVehicleId { get; set; }
 

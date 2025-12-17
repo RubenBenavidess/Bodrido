@@ -1,6 +1,6 @@
 ﻿namespace FleetService.Models
 {
-    public class Truck
+    public class Truck : Vehicle
     {
         public int NumberOfAxles { get; set; }
         public bool HasRefrigeration { get; set; }

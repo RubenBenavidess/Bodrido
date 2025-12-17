@@ -12,7 +12,6 @@
 
         public override bool ValidatePlate()
         {
-            // Implementar logica real
             return !string.IsNullOrEmpty(Plate) && Plate.Length == 7;
         }
     }

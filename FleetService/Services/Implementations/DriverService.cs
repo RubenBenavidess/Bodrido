@@ -45,6 +45,27 @@ namespace FleetService.Services.Implementations
             return driver == null ? null : DriverMapper.ToDto(driver);
         }
 
+        public async Task<IEnumerable<DriverResponseDto>> GetAllDriversAsync(DriverStatus? status = null, LicenseCategory? licenseCategory = null)
+        {
+            var query = _context.Drivers
+                .Include(d => d.CurrentVehicle)
+                .AsQueryable();
+
+            if (status.HasValue)
+            {
+                query = query.Where(d => d.Status == status.Value);
+            }
+
+            if (licenseCategory.HasValue)
+            {
+                query = query.Where(d => d.LicenseCategory == licenseCategory.Value);
+            }
+
+            var drivers = await query.AsNoTracking().ToListAsync();
+
+            return drivers.Select(DriverMapper.ToDto);
+        }
+
         public async Task<DriverResponseDto?> UpdateDriverStatusAsync(Guid driverId, DriverStatus newStatus)
         {
             var driver = await _context.Drivers

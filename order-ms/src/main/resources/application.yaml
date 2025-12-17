@@ -29,3 +29,6 @@ spring:
           default:
             connectTimeout: 5000
             readTimeout: 5000
+
+jwt:
+  public-key-path: classpath:keys/ec_public.pem # Ruta a la llave pública

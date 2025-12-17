@@ -1,0 +1,30 @@
+services:
+  # Base de datos exclusiva para Billing (Puerto 5433)
+  billing-db:
+    image: postgres:16-alpine
+    container_name: bodrido-billing-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bodrido_billing_db
+    ports:
+      - "5433:5432" # Mapeamos 5433 de tu PC al 5432 del contenedor
+    volumes:
+      - billing_postgres_data:/var/lib/postgresql/data
+
+  # (Opcional) El microservicio
+  # billing-ms:
+  #   build: .
+  #   container_name: bodrido-billing-ms
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - DB_HOST=billing-db
+  #     - DB_PORT=5432 # Dentro de la red de docker, la base escucha en 5432
+  #     - DB_NAME=bodrido_billing_db
+  #   depends_on:
+  #     - billing-db
+
+volumes:
+  billing_postgres_data:

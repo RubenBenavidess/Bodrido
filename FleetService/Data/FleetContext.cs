@@ -9,9 +9,8 @@ namespace FleetService.Data
     {
         public FleetContext(DbContextOptions<FleetContext> options) : base(options) { }
 
+        public DbSet<Driver> Drivers { get; set; }
         public DbSet<Vehicle> Vehicles { get; set; }
-        
-        public DbSet<Motorcycle> Motorcycles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

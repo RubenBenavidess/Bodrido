@@ -13,7 +13,7 @@ services:
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
-    ports:
+    ports: 
       - "8000:8000" # Puerto Gateway (Postman)
       - "8001:8001" # Puerto Admin
     volumes:

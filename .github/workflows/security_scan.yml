@@ -1,0 +1,154 @@
+name: Security Scan (Microservice Guard)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - test
+
+jobs:
+  analyze_code:
+    name: Analyze Code Integrity
+    runs-on: ubuntu-latest
+    if: github.head_ref == 'dev'
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **.py
+            **.js
+            **.java
+            **.cpp
+
+      - name: Send to Analysis API
+        env:
+          API_URL: ${{ secrets.ANALYSIS_API_URL }}
+          # 1. AQUÍ INYECTAMOS EL SECRET DE TELEGRAM
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python - <<EOF
+          import os
+          import json
+          import requests
+          import sys
+
+          # --- CONFIGURACIÓN ---
+          api_url = os.environ.get("API_URL")
+          telegram_id = os.environ.get("TELEGRAM_CHAT_ID") # Leemos el ID (puede ser None si no hay secret)
+          files_list = os.environ.get("CHANGED_FILES", "").split()
+          pr_title = os.environ.get("PR_TITLE", "Unknown PR")
+
+          if not files_list:
+              print("No relevant files changed.")
+              sys.exit(0)
+
+          # --- 1. CONSTRUIR LISTA DE ARCHIVOS ---
+          code_payloads = []
+          for file_path in files_list:
+              try:
+                  ext = os.path.splitext(file_path)[1]
+                  lang_map = {".py": "python", ".js": "javascript", ".cpp": "cpp", ".java": "java"}
+                  lang = lang_map.get(ext, "unknown")
+
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                      
+                  code_payloads.append({
+                      "filename": file_path,
+                      "programming_language": lang,
+                      "code": content
+                  })
+              except Exception as e:
+                  print(f"Skipping {file_path}: {e}")
+
+          if not code_payloads:
+              sys.exit(0)
+
+          # --- 2. CONSTRUIR PAYLOAD CON TELEGRAM ---
+          payload = {
+              "pr_title": pr_title,
+              "telegram_chat_id": telegram_id,  # Aquí pasamos el ID al backend
+              "files": code_payloads
+          }
+
+          # --- 3. ENVIAR Y PROCESAR RESPUESTA ---
+          try:
+              print(f"Sending {len(code_payloads)} files to API...")
+              if telegram_id:
+                  print(f"Notification enabled for Telegram ID ending in ...{telegram_id[-3:]}")
+                  
+              response = requests.post(f"{api_url}/analyze", json=payload, timeout=60)
+              
+              if response.status_code != 200:
+                  print(f"::error::API Error {response.status_code}: {response.text}")
+                  sys.exit(1)
+              
+              data = response.json()
+              
+              # Variables de control
+              block_pr = False
+              manual_review = False
+              results = data.get("results", [])
+              
+              print("Analizando resultados detallados...")
+              
+              for res in results:
+                  filename = res.get("filename", "unknown")
+                  functions = res.get("functions", [])
+                  
+                  for func in functions:
+                      fname = func.get("function_name", "unknown")
+                      prediction = func.get("codebert_prediction", {})
+                      label = prediction.get("label", "Safe") 
+                      findings = func.get("findings", []) 
+                      
+                      # REGLA 1: Bloquear si es peligroso o tiene findings
+                      is_dangerous = (label != "Safe" and label != "Other")
+                      has_findings = (len(findings) > 0)
+                      
+                      if is_dangerous or has_findings:
+                          print(f"::error file={filename},title=Critical Vulnerability::Función '{fname}' detectada como {label}.")
+                          block_pr = True
+                          
+                      # REGLA 2: Advertir si es "Other"
+                      elif label == "Other":
+                          print(f"::warning file={filename},title=Manual Review::Función '{fname}' marcada como 'Other'.")
+                          manual_review = True
+                      
+                      else:
+                          print(f"OK: {filename} -> {label}")
+
+              # --- 4. DECISIÓN FINAL ---
+              if block_pr:
+                  print("❌ BLOQUEANDO PR: Vulnerabilidades críticas detectadas.")
+                  sys.exit(1)
+              
+              if manual_review:
+                  print("⚠️ APROBADO CON ADVERTENCIAS.")
+                  sys.exit(0)
+                  
+              print("✅ Security Check Passed.")
+              sys.exit(0)
+
+          except Exception as e:
+              print(f"CRITICAL ERROR: {e}")
+              sys.exit(1)
+          EOF

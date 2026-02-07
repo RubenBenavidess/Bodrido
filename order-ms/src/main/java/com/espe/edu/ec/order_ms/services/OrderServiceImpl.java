@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.espe.edu.ec.order_ms.dtos.AssignDriverRequest;
@@ -12,6 +13,7 @@ import com.espe.edu.ec.order_ms.dtos.DeliveryOrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderPatchRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderRequest;
 import com.espe.edu.ec.order_ms.dtos.OrderResponse;
+import com.espe.edu.ec.order_ms.event_producers.OrderEventProducer;
 import com.espe.edu.ec.order_ms.mappers.OrderMapper;
 import com.espe.edu.ec.order_ms.model_enums.OrderStatus;
 import com.espe.edu.ec.order_ms.model_enums.VehicleType;
@@ -32,7 +34,9 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final TariffRepository tariffRepository;
-    // private final DriverEventProducer driverEventProducer;
+    
+    @Autowired
+    private final OrderEventProducer orderEventProducer;
 
     @Override
     @Transactional
@@ -44,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
         calculateOrderValues(order, orderRequest.getVehicleType());
         
         Order newOrder = orderRepository.save(order);
+        orderEventProducer.publishOrderCreatedEvent(newOrder);
         return OrderMapper.entityToOrderResponse(newOrder);
 
     }
@@ -88,28 +93,68 @@ public class OrderServiceImpl implements OrderService {
                 foundOrder.getDeliveryAddress().setCoordinates(deliveryOrderPatchRequest.getNewCoordinates());
         }
 
-        // TODO: Implement Pickup Patch Request
 
         Order updatedOrder = orderRepository.save(foundOrder);
+        orderEventProducer.publishOrderPatchedEvent(updatedOrder);
+
         return OrderMapper.entityToOrderResponse(updatedOrder);
 
     }
 
     @Override
     @Transactional
-    // TODO: Integrate routing logic
     public void cancelOrder(UUID id) {
         
         Order foundOrder = orderRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + id));
 
-        if (OrderStatus.CREATED.equals(foundOrder.getStatus()) || OrderStatus.PICKED_UP.equals(foundOrder.getStatus())) {
-            log.info("Cancelación local inmediata para pedido: {}", id);
-            foundOrder.setStatus(OrderStatus.CANCELLED);
-            orderRepository.save(foundOrder);
-        }else{
-            throw new IllegalStateException("Una orden solo puede ser cancelada si fue creada o si fue recogida.");
+        // Validar que la orden está en un estado cancelable
+        if (!canCancelOrder(foundOrder.getStatus())) {
+            throw new IllegalStateException(
+                "Una orden solo puede ser cancelada si está en estado: " +
+                "CREATED, ASSIGNMENT_PENDING, ASSIGNED, PICKED_UP o IN_ROUTE. " +
+                "Estado actual: " + foundOrder.getStatus());
         }
+
+        log.info("Cancelando pedido: {}", id);
+        foundOrder.setStatus(OrderStatus.CANCELLED);
+        Order cancelledOrder = orderRepository.save(foundOrder);
+
+        // Publicar evento de cancelación para que FleetService revierte los cambios
+        try {
+            orderEventProducer.publishOrderCancelledEvent(cancelledOrder);
+        } catch (Exception e) {
+            log.error("Error publicando evento de cancelación para orderId={}", id, e);
+            throw new RuntimeException("Error al publicar evento de cancelación", e);
+        }
+    }
+
+    /**
+     * Valida si una orden puede ser cancelada según su estado actual
+     */
+    private boolean canCancelOrder(OrderStatus status) {
+        return OrderStatus.CREATED.equals(status) ||
+               OrderStatus.ASSIGNMENT_PENDING.equals(status) ||
+               OrderStatus.ASSIGNED.equals(status) ||
+               OrderStatus.PICKED_UP.equals(status) ||
+               OrderStatus.IN_ROUTE.equals(status);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse pickupOrder(UUID id) {
+        
+        Order foundOrder = orderRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + id));
+
+        if (!OrderStatus.CREATED.equals(foundOrder.getStatus()))
+            throw new IllegalStateException("La orden debe estar en estado CREATED para ser recogida.");
+
+        foundOrder.setStatus(OrderStatus.PICKED_UP);
+        Order updatedOrder = orderRepository.save(foundOrder);
+
+        orderEventProducer.publishOrderPickedUpEvent(updatedOrder);
+        return OrderMapper.entityToOrderResponse(updatedOrder);
     }
 
     @Override
@@ -123,23 +168,37 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponse assignDriverAndVehicle(UUID orderId, AssignDriverRequest request) {
+        
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
 
-        
-        if (OrderStatus.CANCELLED.equals(order.getStatus()))
-           throw new IllegalStateException("No se puede asignar recursos a una orden cancelada.");
-        
+        // Validar que la orden está en estado CREATED (solo en este estado se puede asignar)
+        if (!OrderStatus.CREATED.equals(order.getStatus())) {
+            throw new IllegalStateException(
+                "No se puede asignar recursos. La orden debe estar en estado CREATED, " +
+                "estado actual: " + order.getStatus());
+        }
 
+        // Guardar temporalmente los IDs que queremos validar
         order.setDriverId(request.getDriverId());
         order.setVehicleId(request.getVehicleId());
         
-        // Nota: No cambiamos el estado automáticamente a menos que sea un requerimiento.
-        // Si quisieras que pase a "IN_ROUTE" o similar, descomenta abajo:
-        // order.setStatus(OrderStatus.IN_ROUTE); 
+        // Cambiar estado a ASSIGNMENT_PENDING para indicar que está esperando validación
+        order.setStatus(OrderStatus.ASSIGNMENT_PENDING);
+        Order savedOrder = orderRepository.save(order);
 
-        Order updatedOrder = orderRepository.save(order);
-        return OrderMapper.entityToOrderResponse(updatedOrder);
+        log.info("Orden {} guardada con estado ASSIGNMENT_PENDING. Solicitando validación a FleetService", orderId);
+
+        // Publicar evento de validación a FleetService
+        // Si esto falla, la transacción se revierte y la orden vuelve a CREATED
+        try {
+            orderEventProducer.publishValidationRequestEvent(savedOrder);
+        } catch (Exception e) {
+            log.error("Error publicando evento de validación para orderId={}", orderId, e);
+            throw new RuntimeException("Error al solicitar validación de recursos", e);
+        }
+
+        return OrderMapper.entityToOrderResponse(savedOrder);
     }
 
     /**
@@ -172,7 +231,7 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CREATED);
     }
 
-    // Clase utilitaria interna (privada y final según buenas prácticas anteriores)
+    // Clase utilitaria interna
     private final class OrderUtils {
 
         private OrderUtils(){

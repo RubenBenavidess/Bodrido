@@ -1,18 +1,18 @@
 # Fleet Service
-API para la gestión de conductores y vehículos.
+API para la gestiÃ³n de conductores y vehÃ­culos.
 
-## Configuración
+## Configuraciï¿½n
 
 ### Requisitos
 - Docker y Docker Compose
 
-## Ejecución para testing con Docker Compose
+## Ejecuciï¿½n para testing con Docker Compose
 ### 2. Construir y ejecutar los contenedores
 ```bash
 docker-compose up --build
 ```
 
-La aplicación estará disponible en:
+La aplicaciÃ³n estarÃ¡ disponible en:
 - API: http://localhost:8080
 - Swagger UI: http://localhost:8080
 
@@ -21,7 +21,7 @@ La aplicación estará disponible en:
 docker-compose down
 ```
 
-### Detener y eliminar volúmenes (limpiar datos)
+### Detener y eliminar volï¿½menes (limpiar datos)
 ```bash
 docker-compose down -v
 ```
@@ -36,6 +36,6 @@ docker-compose down -v
 - `PATCH /api/driver/{id}/status` - Actualizar estado del conductor
 
 ### Vehicle Controller
-- `GET /api/vehicle` - Obtener todos los vehículos
-- `GET /api/vehicle/{id}` - Obtener vehículo por ID
-- `POST /api/vehicle` - Crear vehículo
+- `GET /api/vehicle` - Obtener todos los vehÃ­culos
+- `GET /api/vehicle/{id}` - Obtener vehÃ­culo por ID
+- `POST /api/vehicle` - Crear vehÃ­culo

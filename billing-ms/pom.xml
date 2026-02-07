@@ -57,8 +57,29 @@
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.postgresql</groupId>
+		<dependency>		
+			<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-amqp</artifactId>
+	</dependency>
+	<!-- Spring Security & OAuth2 -->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-security</artifactId>
+	</dependency>
+	<dependency>
+		<groupId>org.springframework.security</groupId>
+		<artifactId>spring-security-oauth2-jose</artifactId>
+	</dependency>
+	<dependency>
+		<groupId>org.springframework.security</groupId>
+		<artifactId>spring-security-oauth2-resource-server</artifactId>
+	</dependency>
+	<dependency>
+		<groupId>com.nimbusds</groupId>
+		<artifactId>nimbus-jose-jwt</artifactId>
+		<version>9.37.1</version>
+	</dependency>
+	<dependency>			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>

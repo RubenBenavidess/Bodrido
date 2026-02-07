@@ -16,6 +16,7 @@ public interface OrderService {
     boolean orderExists(UUID id);
     OrderResponse patchOrder(UUID id, OrderPatchRequest orderPatchRequest);
     void cancelOrder(UUID id);
+    OrderResponse pickupOrder(UUID id);
     List<OrderResponse> getOrdersByCustomer(UUID customerId);
     OrderResponse assignDriverAndVehicle(UUID orderId, AssignDriverRequest request);
 

@@ -33,6 +33,9 @@ public class Order {
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
+    @Column(name = "customer_tax_id", length = 20)
+    private String customerTaxId;
+
     @Column(name = "driver_id")
     private UUID driverId;
 

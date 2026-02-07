@@ -36,17 +36,27 @@ async function seed() {
         const roleSuper = await Role.create({ name: "SUPERVISOR" });
 
         // 3. Asignar Permisos
-        // ADMIN: Tiene acceso total (incluyendo order:view para ver todo)
-        await roleAdmin.addPermissions([p_view_all, p_create, p_update, p_view_nopicked, p_fleet_create, p_fleet_update, p_fleet_view]);
+        // ADMIN: Acceso total a órdenes, creación de pedidos, actualización de pedidos, flota completa
+        // Ver: Todas las órdenes, sus propias órdenes, no recogidas, flota
+        // Crear: Órdenes, conductores, vehículos
+        // Actualizar: Órdenes, conductores, vehículos
+        await roleAdmin.addPermissions([p_view_all, p_view_own, p_create, p_update, p_view_nopicked, p_fleet_create, p_fleet_update, p_fleet_view]);
         
-        // SUPERVISOR: Ve todo y actualiza (según tu lógica anterior)
-        await roleSuper.addPermissions([p_view_all, p_update, p_fleet_create, p_fleet_update]);
+        // SUPERVISOR: Opera la plataforma (excepto ver datos de clientes individuales)
+        // Ver: Todas las órdenes, órdenes no recogidas, flota
+        // Crear: Conductores, vehículos
+        // Actualizar: Órdenes, conductores, vehículos
+        await roleSuper.addPermissions([p_view_all, p_update, p_view_nopicked, p_fleet_create, p_fleet_update, p_fleet_view]);
 
-        // DRIVER: Solo ve lo no recogido
-        await roleDriver.addPermissions([p_view_nopicked]);
+        // DRIVER: Puede ver la flota de conductores y vehículos para consulta
+        // Ver: Órdenes no recogidas, flota
+        // NO PUEDE: Crear u actualizar
+        await roleDriver.addPermissions([p_view_nopicked, p_fleet_view]);
 
-        // CLIENTE: CAMBIO IMPORTANTE
-        // Ya NO tiene p_view_all ("order:view"). Ahora tiene p_view_own ("order:view_own")
+        // CLIENTE: Crea sus propias órdenes y ve solo sus datos
+        // Ver: Sus propias órdenes
+        // Crear: Ordenes
+        // NO PUEDE: Ver todas las órdenes, actualizar órdenes, acceder a flota
         await roleClient.addPermissions([p_create, p_view_own]);
 
         // 4. Crear Zonas

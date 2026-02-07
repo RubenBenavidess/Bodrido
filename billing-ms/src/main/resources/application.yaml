@@ -27,9 +27,18 @@ spring:
           order-ms:
             url: ${ORDER_SERVICE_URL:http://localhost:8080}
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
   # Configuración para Swagger (OpenAPI)
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+jwt:
+  public-key-path: classpath:public-key.pem

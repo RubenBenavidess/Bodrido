@@ -2,12 +2,13 @@ package com.espe.edu.ec.billing_ms.services;
 
 import com.espe.edu.ec.billing_ms.dtos.InvoiceRequest;
 import com.espe.edu.ec.billing_ms.dtos.InvoiceResponse;
-import com.espe.edu.ec.billing_ms.event_producers.OrderEventProducer;
+import com.espe.edu.ec.billing_ms.event_producers.BillingEventProducer;
 import com.espe.edu.ec.billing_ms.mappers.InvoiceMapper;
 import com.espe.edu.ec.billing_ms.models.Invoice;
 import com.espe.edu.ec.billing_ms.model_enums.InvoiceStatus;
 import com.espe.edu.ec.billing_ms.repositories.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +18,11 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InvoiceServiceImpl implements InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
-    private final OrderEventProducer orderEventProducer;
+    private final BillingEventProducer billingEventProducer;
 
     @Override
     @Transactional
@@ -29,12 +31,18 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (invoiceRepository.findByOrderId(request.getOrderId()).isPresent())
             throw new IllegalArgumentException("Ya existe una factura para la orden: " + request.getOrderId());
 
-        if(!orderEventProducer.orderExists(request.getOrderId()))
-            throw new IllegalArgumentException("Orden inexistente: " + request.getOrderId());
-
-        Invoice invoice = InvoiceMapper.requestToEntity(request);
+        log.info("Creando invoice para orden: {}", request.getOrderId());
         
+        Invoice invoice = InvoiceMapper.requestToEntity(request);
         Invoice savedInvoice = invoiceRepository.save(invoice);
+        
+        // Publicar evento de creación de invoice
+        try {
+            billingEventProducer.publishInvoiceCreatedEvent(savedInvoice);
+        } catch (Exception e) {
+            log.error("Error publicando evento de creación de invoice para orderId={}", request.getOrderId(), e);
+            throw new RuntimeException("Error al publicar evento de invoice", e);
+        }
         
         return InvoiceMapper.entityToResponse(savedInvoice);
 
@@ -53,10 +61,19 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssuedAt(LocalDateTime.now());
         
-        // TODO: Complete XML data
+        // Complete XML data
         // invoice.setXmlData(generateXml(...));
 
         Invoice updatedInvoice = invoiceRepository.save(invoice);
+        
+        // Publicar evento de emisión de invoice
+        try {
+            billingEventProducer.publishInvoiceIssuedEvent(updatedInvoice);
+        } catch (Exception e) {
+            log.error("Error publicando evento de emisión de invoice para invoiceId={}", id, e);
+            throw new RuntimeException("Error al publicar evento de invoice", e);
+        }
+        
         return InvoiceMapper.entityToResponse(updatedInvoice);
 
     }

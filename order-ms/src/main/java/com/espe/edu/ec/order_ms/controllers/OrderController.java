@@ -96,6 +96,14 @@ public class OrderController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Marcar pedido como recogido", description = "Cambia el estado de CREATED a PICKED_UP. Requiere scope: order:update")
+    @PostMapping("/{id}/pickup")
+    @PreAuthorize("hasAuthority('SCOPE_order:update')")
+    public ResponseEntity<OrderResponse> pickupOrder(@PathVariable UUID id) {
+        OrderResponse response = orderService.pickupOrder(id);
+        return ResponseEntity.ok(response);
+    }
+
     @Operation(summary = "Verificar existencia (Interno)", description = "Usado por microservicio de Billing.")
     @PostMapping("/exists/{id}")
     @PreAuthorize("hasAuthority('SCOPE_order:view')") 
@@ -111,10 +119,10 @@ public class OrderController {
     @PatchMapping("/{id}/assign")
     @PreAuthorize("hasAuthority('SCOPE_order:update')")
     public ResponseEntity<OrderResponse> assignDriverAndVehicle(
-            @PathVariable UUID id, 
+            @PathVariable UUID orderId, 
             @RequestBody @Valid AssignDriverRequest request) {
         
-        OrderResponse response = orderService.assignDriverAndVehicle(id, request);
+        OrderResponse response = orderService.assignDriverAndVehicle(orderId, request);
         return ResponseEntity.ok(response);
     }
 }

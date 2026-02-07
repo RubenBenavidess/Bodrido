@@ -1,4 +1,5 @@
 using FleetService.Authorization;
+using FleetService.Config;
 using FleetService.Data;
 using FleetService.Middleware;
 using FleetService.Services;
@@ -25,6 +26,12 @@ builder.Services.AddDbContext<FleetContext>(options =>
 
 builder.Services.AddScoped<IDriverService, DriverService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
+
+// Configurar RabbitMQ
+builder.ConfigureRabbitMQ();
+builder.Services.AddSingleton<IOrderValidationProducer, OrderValidationProducer>();
+builder.Services.AddSingleton<IOrderNotificationListener, OrderNotificationListener>();
+builder.Services.AddHostedService<OrderNotificationBackgroundService>();
 
 // Configurar autenticación y autorización
 builder.Services.AddAuthentication(options =>

@@ -4,6 +4,7 @@ import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -31,7 +32,9 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding notificationBinding(Queue queue, TopicExchange exchange) {
+    public Binding notificationBinding(
+            @Qualifier("notificationQueue") Queue queue, 
+            @Qualifier("notificationExchange") TopicExchange exchange) {
         return BindingBuilder.bind(queue)
                 .to(exchange)
                 .with(ROUTING_KEY);
@@ -48,7 +51,9 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding validationBinding(Queue validationQueue, TopicExchange validationExchange) {
+    public Binding validationBinding(
+            @Qualifier("validationQueue") Queue validationQueue, 
+            @Qualifier("validationExchange") TopicExchange validationExchange) {
         return BindingBuilder.bind(validationQueue)
                 .to(validationExchange)
                 .with(VALIDATION_ROUTING_KEY);

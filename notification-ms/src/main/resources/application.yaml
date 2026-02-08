@@ -27,7 +27,7 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
 
 jwt:
-  public-key-path: classpath:public-key.pem
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/ec_public.pem}
 
 management:
   endpoints:

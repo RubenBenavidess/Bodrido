@@ -3,8 +3,6 @@ package com.espe.edu.ec.order_ms.dtos;
 import com.espe.edu.ec.order_ms.model_enums.VehicleType;
 import com.espe.edu.ec.order_ms.models.Address;
 
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +13,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-import org.hibernate.validator.constraints.Length;
 
 import java.util.List;
 

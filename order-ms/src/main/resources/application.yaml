@@ -21,12 +21,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   rabbitmq: 
-    host: ${DB_HOST:localhost}
-    port: ${RABBIT_PORT:5432}
-    username: ${RABBIT_USER:admin}
-    password: ${RABBIT_PASSWORD:admin}
-    connection-timeout: 5000  
-
+    host: ${RABBITMQ_HOST:localhost} 
+    port: ${RABBITMQ_PORT:5672}      
+    username: ${RABBITMQ_USER:admin}
+    password: ${RABBITMQ_PASSWORD:admin}
 
 jwt:
-  public-key-path: ${JWT_PUBLIC_KEY_PATH:file:/app/keys/ec_public.pem} # Ruta a la llave pública
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/ec_public.pem}

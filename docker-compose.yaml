@@ -52,7 +52,7 @@ services:
   # ============================================
   auth-service:
     build:
-      context: ./src
+      context: ./auth-ms
       dockerfile: Dockerfile
     container_name: logiflow_auth_service
     restart: always
@@ -64,12 +64,10 @@ services:
       DB_USER: postgres
       DB_PASSWORD: admin123
       DB_NAME: logiflow_auth
-      PRIVATE_KEY_PATH: ./keys/ec_private.pem
-      PUBLIC_KEY_PATH: ./keys/ec_public.pem
+      PRIVATE_KEY_PATH: /app/keys/ec_private.pem
+      PUBLIC_KEY_PATH: /app/keys/ec_public.pem
     ports:
       - "4000:4000"
-    volumes:
-      - ./src/keys:/app/keys:ro
     depends_on:
       auth-db:
         condition: service_healthy
@@ -91,12 +89,17 @@ services:
       ASPNETCORE_URLS: "http://+:8080"
       ConnectionStrings__DefaultConnection: "Host=fleet-db;Port=5432;Database=FleetDB;Username=fleetUser;Password=fleetPass123"
       Jwt__PublicKeyPath: "/app/Keys/ec_public.pem"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
     ports:
       - "5000:8080"
     volumes:
       - ./src/keys:/app/Keys:ro
     depends_on:
       fleet-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - logiflow_network
@@ -138,13 +141,16 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: bodrido_orders_db
-      JWT_PUBLIC_KEY_PATH: file:/app/keys/ec_public.pem
+      RABBITMQ_HOST: rabbitmq 
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     ports:
       - "8080:8080"
-    volumes:
-      - ./src/keys:/app/keys:ro
     depends_on:
       order-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - logiflow_network
@@ -187,11 +193,17 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: bodrido_billing_db
-      ORDER_SERVICE_URL: http://order-service:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      ORDER_SERVICE_URL: http://logiflow_order_service:8080
     ports:
       - "8081:8081"
     depends_on:
       billing-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - logiflow_network
@@ -221,6 +233,77 @@ services:
       - fleet-service
       - order-service
       - billing-service
+      - notification-service
+    networks:
+      - logiflow_network
+
+  # ============================================
+  # MESSAGE BROKER (RabbitMQ) - Necesario para eventos
+  # ============================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: logiflow_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"   # Puerto de mensajes
+      - "15672:15672" # Panel de control (Admin)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - logiflow_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # BASE DE DATOS - Notification Service (PostgreSQL)
+  # ============================================
+  notification-db:
+    image: postgres:16-alpine
+    container_name: logiflow_notification_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bodrido_notification_db
+    ports:
+      - "5436:5432" # Mapeamos a 5436 para no chocar con las otras
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    networks:
+      - logiflow_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # NOTIFICATION SERVICE (Java Spring Boot)
+  # ============================================
+  notification-service:
+    build:
+      context: ./notification-ms
+      dockerfile: Dockerfile
+    container_name: logiflow_notification_service
+    restart: always
+    environment:
+      DB_HOST: notification-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: bodrido_notification_db
+      RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8082:8082"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - logiflow_network
 
@@ -236,6 +319,8 @@ volumes:
     name: logiflow_order_postgres_data
   billing_postgres_data:
     name: logiflow_billing_postgres_data
+  notification_postgres_data:
+    name: logiflow_notification_postgres_data
 
 # ============================================
 # NETWORKS

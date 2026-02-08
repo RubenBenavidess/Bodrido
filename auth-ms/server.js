@@ -15,6 +15,11 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express"; 
 import { swaggerSpec } from "./config/swagger.js";
 
+import { seed } from "./scripts/seed.js";
+
+// 0. Seed
+seed();
+
 // 1. Inicializar App
 const app = express();
 

@@ -10,15 +10,13 @@ const sequelize = new Sequelize(
     {
         host: process.env.DB_HOST,
         dialect: "postgres",
-        logging: false, // Ponlo en true si quieres ver los queries SQL
+        logging: false,
     }
 );
 
 export default async function connect() {
     try {
         await sequelize.authenticate();
-        // Crea las tablas si no existen 
-        await sequelize.sync({ alter: true });
         console.log("Conexión exitosa a PostgreSQL (Sequelize)");
     } catch (error) {
         console.error("Error al conectar a PostgreSQL:", error);

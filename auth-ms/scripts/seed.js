@@ -1,3 +1,4 @@
+console.log(">>> EJECUTANDO ARCHIVO SEED.JS"); // Si no ves esto, el archivo ni siquiera carga
 // src/scripts/seed.js
 import { sequelize } from "../config/db.js";
 import Role from "../models/Role.js";
@@ -5,11 +6,17 @@ import Permission from "../models/Permission.js";
 import Zone from "../models/Zone.js";
 import defineAssociations from "../models/associations.js";
 
-async function seed() {
+export async function seed() {
     try {
         await sequelize.authenticate();
         defineAssociations();
-        await sequelize.sync({ force: true });
+        await sequelize.sync({ force: false });
+        
+        const count = await Role.count();
+        if (count > 0) {
+            console.log(">>> El sistema ya tiene datos. Saltando Seed...");
+            return;
+        }
 
         console.log("Iniciando Seed...");
 
@@ -69,8 +76,6 @@ async function seed() {
         process.exit();
     } catch (error) {
         console.error("Error en el seed:", error);
-        process.exit(1);
+        return;
     }
 }
-
-seed();

@@ -70,3 +70,16 @@ services:
         config:
           minute: 100
           policy: local
+
+  - name: notification-service
+    url: http://notification-service:8082
+    routes:
+      - name: notification-route
+        paths:
+          - /api/notification
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local

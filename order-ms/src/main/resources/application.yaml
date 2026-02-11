@@ -22,7 +22,7 @@ spring:
 
   rabbitmq: 
     host: ${RABBITMQ_HOST:localhost} 
-    port: ${RABBITMQ_PORT:5672}      
+    port: ${RABBITMQ_SVC_PORT:5672}      
     username: ${RABBITMQ_USER:admin}
     password: ${RABBITMQ_PASSWORD:admin}
 

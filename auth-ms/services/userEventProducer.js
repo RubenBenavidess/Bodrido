@@ -16,9 +16,14 @@ async function connectRabbitMQ() {
             return channel;
         }
 
-        const url = `amqp://${process.env.RABBITMQ_USER || 'guest'}:${process.env.RABBITMQ_PASSWORD || 'guest'}@${process.env.RABBITMQ_HOST || 'localhost'}:${process.env.RABBITMQ_PORT || 5672}`;
+        const host = process.env.RABBITMQ_HOST || 'localhost';
+        const port = process.env.RABBITMQ_SVC_PORT || 5672;
+        const user = process.env.RABBITMQ_USER || 'guest';
+        const pass = process.env.RABBITMQ_PASSWORD || 'guest';
 
-        console.log(`>>> [PRODUCER] Conectando a RabbitMQ en: ${process.env.RABBITMQ_HOST}:${process.env.RABBITMQ_PORT}`);
+        const url = `amqp://${user}:${pass}@${host}:${port}`;
+
+        console.log(`>>> [PRODUCER] Conectando a RabbitMQ en: ${host}:${port}`);
         connection = await amqp.connect(url);
         channel = await connection.createChannel();
 

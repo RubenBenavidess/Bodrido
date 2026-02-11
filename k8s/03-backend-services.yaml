@@ -132,7 +132,7 @@ spec:
           value: bodrido_orders_db
         - name: RABBITMQ_HOST
           value: rabbitmq
-        - name: RABBITMQ_PORT
+        - name: RABBITMQ_SVC_PORT
           value: "5672"
         - name: RABBITMQ_USER
           value: guest
@@ -182,7 +182,7 @@ spec:
           value: bodrido_billing_db
         - name: RABBITMQ_HOST
           value: rabbitmq
-        - name: RABBITMQ_PORT
+        - name: RABBITMQ_SVC_PORT
           value: "5672"
         - name: RABBITMQ_USER
           value: guest
@@ -285,7 +285,7 @@ spec:
           value: bodrido_customer_db
         - name: RABBITMQ_HOST
           value: rabbitmq
-        - name: RABBITMQ_PORT
+        - name: RABBITMQ_SVC_PORT
           value: "5672"
         - name: RABBITMQ_USER
           value: guest

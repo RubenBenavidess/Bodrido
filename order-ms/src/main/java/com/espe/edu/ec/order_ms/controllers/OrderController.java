@@ -33,7 +33,10 @@ public class OrderController {
     @Operation(summary = "Crear pedido", description = "Requiere scope: order:create")
     @PostMapping
     @PreAuthorize("hasAuthority('SCOPE_order:create')")
-    public ResponseEntity<OrderResponse> createOrder(@RequestBody @Valid OrderRequest orderRequest) {
+    public ResponseEntity<OrderResponse> createOrder(
+        @RequestBody @Valid OrderRequest orderRequest,
+        @AuthenticationPrincipal Jwt jwt) {
+            
         OrderResponse response = orderService.createOrder(orderRequest);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -119,10 +122,10 @@ public class OrderController {
     @PatchMapping("/{id}/assign")
     @PreAuthorize("hasAuthority('SCOPE_order:update')")
     public ResponseEntity<OrderResponse> assignDriverAndVehicle(
-            @PathVariable UUID orderId, 
+            @PathVariable UUID id, 
             @RequestBody @Valid AssignDriverRequest request) {
         
-        OrderResponse response = orderService.assignDriverAndVehicle(orderId, request);
+        OrderResponse response = orderService.assignDriverAndVehicle(id, request);
         return ResponseEntity.ok(response);
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.espe.edu.ec.order_ms.model_enums.OrderStatus;
+import com.espe.edu.ec.order_ms.model_enums.SagaStep;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -45,6 +46,20 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "saga_step", nullable = false)
+    @Builder.Default
+    private SagaStep sagaStep = SagaStep.WAITING_VERIFICATION;
+
+    @Column(name = "saga_reason", length = 500)
+    private String sagaReason;
+
+    @Column(name = "saga_started_at")
+    private LocalDateTime sagaStartedAt;
+
+    @Column(name = "assignment_saga_started_at")
+    private LocalDateTime assignmentSagaStartedAt;
 
     @Column(name = "distance_km", precision = 10, scale = 2)
     private BigDecimal distanceKm;

@@ -1,4 +1,4 @@
-package com.espe.edu.ec.order_ms.event_listeners;
+package com.espe.edu.ec.order_ms.dtos.events;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,10 +20,12 @@ import lombok.NoArgsConstructor;
 public class OrderValidationEvent {
 
     private UUID orderId;
-    private String validationType; // "resources_assigned", etc
+    private UUID driverId;
+    private String vehicleId;
+    private String validationType;
     private boolean success;
     private String errorMessage;
-    private String sourceService; // "fleet-ms", "billing-ms", etc
+    private String sourceService;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;

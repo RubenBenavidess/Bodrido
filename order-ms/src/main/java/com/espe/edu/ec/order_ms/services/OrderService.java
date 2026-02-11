@@ -19,5 +19,11 @@ public interface OrderService {
     OrderResponse pickupOrder(UUID id);
     List<OrderResponse> getOrdersByCustomer(UUID customerId);
     OrderResponse assignDriverAndVehicle(UUID orderId, AssignDriverRequest request);
+    void cancelOrderDueToVerificationFailure(UUID orderId, String reason);
+    void confirmOrderVerification(UUID orderId);
+    void dropOrderDueToRejection(UUID orderId, String reason);
+    void dropOrderDueToTimeout(UUID orderId);
+    void confirmAssignmentVerification(UUID orderId);
+    void rejectAssignmentAndReturnToCreated(UUID orderId, String reason);
 
 }

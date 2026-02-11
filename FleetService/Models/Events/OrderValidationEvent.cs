@@ -7,5 +7,5 @@ public class OrderValidationEvent
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public string SourceService { get; set; } = "fleet-ms";
-    public DateTime Timestamp { get; set; }
+    public string Timestamp { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss");
 }

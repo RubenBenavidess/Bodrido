@@ -9,6 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
+    // ======================== Order Notifications ========================
+    public static final String ORDERS_NOTIFICATIONS_EXCHANGE = "orders-notifications.exchange";
+    public static final String ORDERS_NOTIFICATIONS_QUEUE = "orders-notifications.queue";
+    public static final String ORDERS_NOTIFICATIONS_ROUTING_KEY = "orders-notifications.routingKey";
+
+
+
+
     // ======================== Billing Events ========================
     public static final String BILLING_EVENTS_EXCHANGE = "billing-events.exchange";
     public static final String BILLING_NOTIFICATIONS_QUEUE = "notification-billing-events.queue";
@@ -20,6 +28,29 @@ public class RabbitMQConfig {
     public static final String VALIDATIONS_ROUTING_KEY = "validation.*";
 
     // ======================== Billing Events Configuration ========================
+
+
+    // ======================== Order Notifications Configuration ========================
+    @Bean
+    public TopicExchange ordersNotificationsExchange() {
+        return new TopicExchange(ORDERS_NOTIFICATIONS_EXCHANGE, true, false);
+    }
+    @Bean
+    public Queue ordersNotificationsQueue() {
+        return QueueBuilder.durable(ORDERS_NOTIFICATIONS_QUEUE).build();
+    }
+    @Bean
+    public Binding ordersNotificationsBinding(
+            Queue ordersNotificationsQueue,
+            TopicExchange ordersNotificationsExchange) {
+
+        return BindingBuilder.bind(ordersNotificationsQueue)
+                .to(ordersNotificationsExchange)
+                .with(ORDERS_NOTIFICATIONS_ROUTING_KEY);
+    }
+
+
+
     @Bean
     public TopicExchange billingEventsExchange() {
         return new TopicExchange(BILLING_EVENTS_EXCHANGE, true, false);

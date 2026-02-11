@@ -6,6 +6,7 @@ import Zone from "../models/Zone.js";
 import RefreshToken from "../models/RefreshToken.js";
 import { generateToken } from "../security/jwtManager.js";
 import { sequelize } from "../config/db.js";
+import { publishUserCreatedEvent, publishDriverCreatedEvent } from "./userEventProducer.js";
 import crypto from "crypto";
 
 // Función auxiliar para crear tokens opacos (random string)
@@ -18,14 +19,40 @@ export async function register(userData) {
     const t = await sequelize.transaction();
     try {
         // 1. Buscar el rol
-        // Si el frontend manda el nombre del rol (ej: "DRIVER"), hay que buscar su ID
+        // Si el frontend manda el nombre del rol (ej: "CLIENT"), hay que buscar su ID
         let roleId = userData.role_id;
+        let role = null;
+        
+        console.log(">>> [REGISTER] Recibido userData:", { username: userData.username, role: userData.role, role_id: userData.role_id });
+        
         if (!roleId && userData.role) {
-            const role = await Role.findOne({ where: { name: userData.role } });
+            console.log(`>>> [REGISTER] Búsqueda de rol por nombre: ${userData.role}`);
+            role = await Role.findOne({ where: { name: userData.role } });
+            console.log(`>>> [REGISTER] Rol encontrado:`, role ? { id: role.id, name: role.name } : "NO ENCONTRADO");
             if (!role) throw new Error("Role not found");
+            roleId = role.id;
+        } else if (roleId) {
+            // Si viene role_id, buscar el rol completo
+            console.log(`>>> [REGISTER] Búsqueda de rol por ID: ${roleId}`);
+            role = await Role.findOne({ where: { id: roleId } });
+            console.log(`>>> [REGISTER] Rol encontrado:`, role ? { id: role.id, name: role.name } : "NO ENCONTRADO");
+            if (!role) throw new Error("Role not found");
+        } else {
+            // Si no se especifica rol, buscar "CLIENT" por defecto
+            console.warn(">>> [REGISTER] No role specified, usando default CLIENT role");
+            role = await Role.findOne({ where: { name: "CLIENT" } });
+            console.log(`>>> [REGISTER] Default CLIENT rol encontrado:`, role ? { id: role.id, name: role.name } : "NO ENCONTRADO");
+            if (!role) {
+                throw new Error("Default CLIENT role not found. Please seed the database with roles first.");
+            }
             roleId = role.id;
         }
 
+        if (!roleId) {
+            throw new Error("Invalid role_id: must be a valid integer");
+        }
+
+        console.log(`>>> [REGISTER] Creando usuario con roleId: ${roleId}`);
         const newUser = await User.create({
             username: userData.username,
             email: userData.email,
@@ -35,9 +62,31 @@ export async function register(userData) {
             zone_id: userData.zone_id || null
         }, { transaction: t });
 
+        console.log(`>>> [REGISTER] Usuario creado exitosamente:`, { id: newUser.id, username: newUser.username });
+
         await t.commit();
+        
+        // Publicar evento según el rol del usuario
+        try {
+            const roleName = role.name;
+            
+            if (roleName === 'CLIENT') {
+                console.log(">>> [REGISTER] Publicando evento de CLIENT...");
+                await publishUserCreatedEvent(newUser, role);
+            } else if (roleName === 'DRIVER') {
+                console.log(">>> [REGISTER] Publicando evento de DRIVER...");
+                await publishDriverCreatedEvent(newUser, role);
+            } else {
+                console.log(`>>> [REGISTER] Rol ${roleName} no requiere publicación de eventos`);
+            }
+        } catch (eventError) {
+            console.error("✗ Error al publicar evento de usuario", eventError.message);
+            // No relanzar error, el usuario ya fue creado
+        }
+        
         return newUser;
     } catch (error) {
+        console.error(">>> [REGISTER] ERROR CAPTURADO:", error.message || error.original?.message || JSON.stringify(error));
         await t.rollback();
         throw error;
     }

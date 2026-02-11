@@ -72,10 +72,10 @@ export async function seed() {
         await Zone.create({ nombre_ciudad: "Quito", zona_geo: "CENTRO" });
         await Zone.create({ nombre_ciudad: "Guayaquil", zona_geo: "NORTE" });
 
-        console.log("Seed completado. Permisos actualizados correctamente.");
-        process.exit();
+        console.log("✓ Seed completado. Permisos y roles creados exitosamente.");
     } catch (error) {
-        console.error("Error en el seed:", error);
-        return;
+        console.error("✗ Error en el seed:", error.message);
+        console.error("  El servidor continuará, pero puede que falten roles en la BD");
     }
 }
+

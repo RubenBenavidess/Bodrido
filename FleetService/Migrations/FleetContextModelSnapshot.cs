@@ -29,8 +29,16 @@ namespace FleetService.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
                     b.Property<Guid?>("CurrentVehicleId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsValidationCompleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_validation_completed");
 
                     b.Property<Location>("LastLocation")
                         .IsRequired()
@@ -48,8 +56,25 @@ namespace FleetService.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ValidationSagaReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("validation_saga_reason");
+
+                    b.Property<DateTime?>("ValidationSagaStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("validation_saga_started_at");
+
+                    b.Property<int>("ValidationSagaStep")
+                        .HasColumnType("integer")
+                        .HasColumnName("validation_saga_step");
 
                     b.HasKey("Id");
 

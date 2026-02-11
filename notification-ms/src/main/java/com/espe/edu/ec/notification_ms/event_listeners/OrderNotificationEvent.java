@@ -1,4 +1,4 @@
-package com.espe.edu.ec.order_ms.event_producers;
+package com.espe.edu.ec.notification_ms.event_listeners;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -19,11 +19,11 @@ import lombok.NoArgsConstructor;
 public class OrderNotificationEvent {
 
     private UUID id;
-    private final String microservice = "order-ms";
+    private String microservice;
     private String action;
 
     private UUID orderId;
-    private final String entityType = "ORDER";
+    private String entityType;
     
     private String message;
 
@@ -42,4 +42,3 @@ public class OrderNotificationEvent {
 
 
 }
-

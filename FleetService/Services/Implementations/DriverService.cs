@@ -3,26 +3,45 @@ using FleetService.DTOs.Mappers;
 using FleetService.DTOs.Request;
 using FleetService.DTOs.Response;
 using FleetService.Models;
+using FleetService.Models.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace FleetService.Services.Implementations
 {
-    public class DriverService(FleetContext _context) : IDriverService
+    public class DriverService(
+        FleetContext _context,
+        IDriverValidationProducer _validationProducer,
+        ILogger<DriverService> _logger) : IDriverService
     {
-        public async Task<DriverResponseDto> RegisterDriverAsync(DriverRequestDto request)
+        /// <summary>
+        /// Configura un conductor existente (creado automáticamente por el evento de auth-ms).
+        /// Actualiza licencia y categoría, y opcionalmente inicia la saga de validación.
+        /// </summary>
+        public async Task<DriverResponseDto> ConfigureDriverAsync(Guid driverId, DriverConfigureDto configDto)
         {
-            bool alreadyExists = await _context.Drivers
-                .AnyAsync(d => d.UserId == request.UserId);
+            var driver = await _context.Drivers
+                .Include(d => d.CurrentVehicle)
+                .FirstOrDefaultAsync(d => d.Id == driverId);
 
-            if (alreadyExists)
+            if (driver == null)
             {
-                throw new InvalidOperationException($"El usuario {request.UserId} ya está registrado como conductor.");
+                throw new KeyNotFoundException(
+                    $"No se encontró el conductor con Id={driverId}. " +
+                    "Los conductores son creados automáticamente al registrarse en auth-ms."
+                );
             }
 
-            var driver = DriverMapper.ToEntity(request);
+            // Actualizar datos de licencia
+            driver.LicenseNumber = configDto.LicenseNumber;
+            driver.LicenseCategory = configDto.LicenseCategory;
+            driver.UpdatedAt = DateTime.UtcNow;
 
-            _context.Drivers.Add(driver);
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "✓ Conductor configurado: DriverId={}, LicenseNumber={}, LicenseCategory={}",
+                driver.Id, driver.LicenseNumber, driver.LicenseCategory
+            );
 
             return DriverMapper.ToDto(driver);
         }
@@ -78,6 +97,7 @@ namespace FleetService.Services.Implementations
             }
 
             driver.Status = newStatus;
+            driver.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return DriverMapper.ToDto(driver);

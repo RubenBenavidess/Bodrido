@@ -6,16 +6,6 @@ namespace FleetService.DTOs.Mappers
 {
     public class DriverMapper
     {
-        public static Driver ToEntity(DriverRequestDto dto)
-        {
-            return new Driver
-            {
-                UserId = dto.UserId,
-                LicenseNumber = dto.LicenseNumber,
-                LicenseCategory = dto.LicenseCategory,
-            };
-        }
-
         public static DriverResponseDto ToDto(Driver entity)
         {
             return new DriverResponseDto

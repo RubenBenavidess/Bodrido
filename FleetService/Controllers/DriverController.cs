@@ -19,27 +19,26 @@ namespace FleetService.Controllers
             return Ok(drivers);
         }
 
-        [HttpPost]
-        [Authorize(Policy = "FleetCreate")]
-        public async Task<IActionResult> RegisterDriver([FromBody] DriverRequestDto requestDto)
+        /// <summary>
+        /// Configura un conductor existente (creado automáticamente al registrarse en auth-ms).
+        /// Solo actualiza licencia y categoría. No permite crear conductores nuevos.
+        /// </summary>
+        [HttpPatch("{id}/configure")]
+        [Authorize(Policy = "FleetUpdate")]
+        public async Task<IActionResult> ConfigureDriver(Guid id, [FromBody] DriverConfigureDto configDto)
         {
             try
             {
-                var createdDriver = await _driverService.RegisterDriverAsync(requestDto);
-
-                return CreatedAtAction(
-                    nameof(GetById),
-                    new { id = createdDriver.Id },
-                    createdDriver
-                );
+                var updatedDriver = await _driverService.ConfigureDriverAsync(id, configDto);
+                return Ok(updatedDriver);
             }
-            catch (ArgumentException ex)
+            catch (KeyNotFoundException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return NotFound(new { error = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = $"Error interno registrando el conductor: {ex.Message}" });
+                return StatusCode(500, new { error = $"Error interno configurando el conductor: {ex.Message}" });
             }
         }
 

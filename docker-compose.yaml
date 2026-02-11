@@ -66,10 +66,16 @@ services:
       DB_NAME: logiflow_auth
       PRIVATE_KEY_PATH: /app/keys/ec_private.pem
       PUBLIC_KEY_PATH: /app/keys/ec_public.pem
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
     ports:
       - "4000:4000"
     depends_on:
       auth-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - logiflow_network
@@ -94,8 +100,6 @@ services:
       RabbitMQ__Password: guest
     ports:
       - "5000:8080"
-    volumes:
-      - ./src/keys:/app/Keys:ro
     depends_on:
       fleet-db:
         condition: service_healthy
@@ -307,6 +311,58 @@ services:
     networks:
       - logiflow_network
 
+  # ============================================
+  # BASE DE DATOS - Customer Service (PostgreSQL)
+  # ============================================
+  customer-db:
+    image: postgres:16-alpine
+    container_name: logiflow_customer_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bodrido_customer_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - customer_postgres_data:/var/lib/postgresql/data
+    networks:
+      - logiflow_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # CUSTOMER SERVICE (Java Spring Boot)
+  # ============================================
+  customer-service:
+    build:
+      context: ./customer-ms
+      dockerfile: Dockerfile
+    container_name: logiflow_customer_service
+    restart: always
+    environment:
+      DB_HOST: customer-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: bodrido_customer_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8083:8081"
+    depends_on:
+      customer-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - logiflow_network
+
 # ============================================
 # VOLUMES
 # ============================================
@@ -321,6 +377,8 @@ volumes:
     name: logiflow_billing_postgres_data
   notification_postgres_data:
     name: logiflow_notification_postgres_data
+  customer_postgres_data:
+    name: logiflow_customer_postgres_data
 
 # ============================================
 # NETWORKS

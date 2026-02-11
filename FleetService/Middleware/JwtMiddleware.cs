@@ -51,10 +51,15 @@ namespace FleetService.Middleware
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.Zero,
+                    // Permitir claims custom
+                    NameClaimType = "sub"
                 };
 
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+                
+                // Log para debugging
+                _logger.LogInformation($"Token validado. Claims: {string.Join(", ", principal.Claims.Select(c => $"{c.Type}={c.Value}"))}");
                 
                 context.User = principal;
             }

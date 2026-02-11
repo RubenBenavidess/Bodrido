@@ -12,13 +12,12 @@ import helmet from "helmet";
 import cors from "cors";
 import handleErrors from "./middleware/errors/errorMIddleware.js";
 import cookieParser from "cookie-parser";
-import swaggerUi from "swagger-ui-express"; 
+import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger.js";
 
 import { seed } from "./scripts/seed.js";
-
-// 0. Seed
-seed();
+import { setupUserRollbackListener } from "./services/userRollbackListener.js";
+import { deactivateUserDueToCustomerCreationFailure } from "./services/userCompensationService.js";
 
 // 1. Inicializar App
 const app = express();
@@ -62,17 +61,31 @@ const PORT = process.env.PORT;
 (async () => {
     try {
         // A. Conectar a BDD
-        await connect(); 
-        
+        await connect();
+
         // B. Definir relaciones (CRÍTICO: Antes de sync)
         defineAssociations();
-        
+
         // C. Sincronizar modelos (Crea tablas FK correctamente)
         // En prod usa { alter: true } con cuidado, o migraciones
         await sequelize.sync({ alter: true });
         console.log("Tablas sincronizadas con asociaciones");
 
-        // D. Levantar servidor
+        // D. Ejecutar Seed (Crear roles, permisos, zonas)
+        console.log("Ejecutando Seed...");
+        await seed();
+        console.log("✓ Seed completado");
+
+        // E. Inicializar Saga Compensation Listener (Escuchar fallos de fleet-ms)
+        try {
+            await setupUserRollbackListener(deactivateUserDueToCustomerCreationFailure);
+            console.log("✓ Saga Compensation Listener iniciado (fleet-ms → auth-ms)");
+        } catch (listenError) {
+            console.error("⚠️ Error iniciando Saga Compensation Listener:", listenError.message);
+            console.error("💡 El sistema continuará, pero no podrá compensar fallos de fleet-ms");
+        }
+
+        // F. Levantar servidor
         app.listen(PORT, () => {
             console.log(`Auth Microservice running on port ${PORT}!`);
         });

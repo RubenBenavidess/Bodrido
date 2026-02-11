@@ -4,15 +4,17 @@ namespace FleetService.Config;
 
 public static class RabbitMQConfig
 {
-    // Notificaciones desde Order MS (ESCUCHAMOS)
-    public const string NotificationExchangeName = "orders-notifications.exchange";
+    // Notificaciones desde Order MS (ESCUCHAMOS validaciones de asignación)
+    // order-ms publica en: orders-validations-fleet.exchange con routing: orders.validations.fleet
+    public const string NotificationExchangeName = "orders-validations-fleet.exchange";
     public const string NotificationQueueName = "fleet-notifications.queue";
-    public const string NotificationRoutingKey = "order.*";
+    public const string NotificationRoutingKey = "orders.validations.fleet";
 
-    // Validaciones para Order MS (PUBLICAMOS)
-    public const string ValidationExchangeName = "orders-validations.exchange";
-    public const string ValidationQueueName = "orders-validations.queue";
-    public const string ValidationRoutingKey = "validation.*";
+    // Validaciones para Order MS (PUBLICAMOS resultado de vuelta)
+    // order-ms escucha en: order-fleet.verification.result queue, exchange: order-fleet-verification-result.exchange
+    public const string ValidationExchangeName = "order-fleet-verification-result.exchange";
+    public const string ValidationQueueName = "order-fleet.verification.result";
+    public const string ValidationRoutingKey = "order-fleet.verification.result";
 
     public static void ConfigureRabbitMQ(this WebApplicationBuilder builder)
     {

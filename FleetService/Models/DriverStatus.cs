@@ -2,6 +2,7 @@
 {
     public enum DriverStatus
     {
+        INACTIVE,
         OFF_DUTY,
         AVAILABLE,
         BUSY,

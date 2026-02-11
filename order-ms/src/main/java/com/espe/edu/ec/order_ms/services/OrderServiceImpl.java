@@ -2,6 +2,7 @@ package com.espe.edu.ec.order_ms.services;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ import com.espe.edu.ec.order_ms.dtos.OrderResponse;
 import com.espe.edu.ec.order_ms.event_producers.OrderEventProducer;
 import com.espe.edu.ec.order_ms.mappers.OrderMapper;
 import com.espe.edu.ec.order_ms.model_enums.OrderStatus;
+import com.espe.edu.ec.order_ms.model_enums.SagaStep;
 import com.espe.edu.ec.order_ms.model_enums.VehicleType;
 import com.espe.edu.ec.order_ms.models.Address;
 import com.espe.edu.ec.order_ms.models.Order;
@@ -48,7 +50,13 @@ public class OrderServiceImpl implements OrderService {
         calculateOrderValues(order, orderRequest.getVehicleType());
         
         Order newOrder = orderRepository.save(order);
+        
+        // Iniciar saga - registrar sagaStartedAt
+        newOrder.setSagaStartedAt(LocalDateTime.now());
+        newOrder = orderRepository.save(newOrder);
+        
         orderEventProducer.publishOrderCreatedEvent(newOrder);
+
         return OrderMapper.entityToOrderResponse(newOrder);
 
     }
@@ -112,7 +120,7 @@ public class OrderServiceImpl implements OrderService {
         if (!canCancelOrder(foundOrder.getStatus())) {
             throw new IllegalStateException(
                 "Una orden solo puede ser cancelada si está en estado: " +
-                "CREATED, ASSIGNMENT_PENDING, ASSIGNED, PICKED_UP o IN_ROUTE. " +
+                "PENDING, CREATED, ASSIGNMENT_PENDING, ASSIGNED, PICKED_UP o IN_ROUTE. " +
                 "Estado actual: " + foundOrder.getStatus());
         }
 
@@ -120,7 +128,7 @@ public class OrderServiceImpl implements OrderService {
         foundOrder.setStatus(OrderStatus.CANCELLED);
         Order cancelledOrder = orderRepository.save(foundOrder);
 
-        // Publicar evento de cancelación para que FleetService revierte los cambios
+        // Publicar evento de cancelación para que FleetService revierta los cambios
         try {
             orderEventProducer.publishOrderCancelledEvent(cancelledOrder);
         } catch (Exception e) {
@@ -133,7 +141,8 @@ public class OrderServiceImpl implements OrderService {
      * Valida si una orden puede ser cancelada según su estado actual
      */
     private boolean canCancelOrder(OrderStatus status) {
-        return OrderStatus.CREATED.equals(status) ||
+        return OrderStatus.PENDING.equals(status) ||
+               OrderStatus.CREATED.equals(status) ||
                OrderStatus.ASSIGNMENT_PENDING.equals(status) ||
                OrderStatus.ASSIGNED.equals(status) ||
                OrderStatus.PICKED_UP.equals(status) ||
@@ -185,6 +194,8 @@ public class OrderServiceImpl implements OrderService {
         
         // Cambiar estado a ASSIGNMENT_PENDING para indicar que está esperando validación
         order.setStatus(OrderStatus.ASSIGNMENT_PENDING);
+        order.setSagaStep(SagaStep.WAITING_ASSIGNMENT_VERIFICATION);
+        order.setAssignmentSagaStartedAt(LocalDateTime.now());
         Order savedOrder = orderRepository.save(order);
 
         log.info("Orden {} guardada con estado ASSIGNMENT_PENDING. Solicitando validación a FleetService", orderId);
@@ -192,13 +203,67 @@ public class OrderServiceImpl implements OrderService {
         // Publicar evento de validación a FleetService
         // Si esto falla, la transacción se revierte y la orden vuelve a CREATED
         try {
-            orderEventProducer.publishValidationRequestEvent(savedOrder);
+            orderEventProducer.publishAssignValidationRequestEvent(savedOrder);
         } catch (Exception e) {
             log.error("Error publicando evento de validación para orderId={}", orderId, e);
             throw new RuntimeException("Error al solicitar validación de recursos", e);
         }
 
         return OrderMapper.entityToOrderResponse(savedOrder);
+    }
+
+    @Override
+    @Transactional
+    public void cancelOrderDueToVerificationFailure(UUID orderId, String reason) {
+        log.warn("► [COMPENSATION] Cancelando orden por fallo de verificación de cliente: orderId={}, reason={}", 
+            orderId, reason);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        if (!canCancelOrder(order.getStatus())) {
+            log.warn("✗ No se puede cancelar orden en estado: {}", order.getStatus());
+            throw new IllegalStateException(
+                "Solo se pueden cancelar órdenes en estado: PENDING, ASSIGNMENT_PENDING, ASSIGNED, PICKED_UP o IN_ROUTE. " +
+                "Estado actual: " + order.getStatus());
+        }
+
+        log.info("✓ [COMPENSATION] Cancelando pedido: {}", orderId);
+        order.setStatus(OrderStatus.CANCELLED);
+        Order cancelledOrder = orderRepository.save(order);
+
+        // Publicar evento de cancelación para que otros microservicios reaccionen
+        try {
+            orderEventProducer.publishOrderCancelledEvent(cancelledOrder);
+            log.info("✓ [COMPENSATION] Evento de cancelación publicado para orderId={}", orderId);
+        } catch (Exception e) {
+            log.error("✗ Error publicando evento de cancelación para orderId={}", orderId, e);
+            throw new RuntimeException("Error al publicar evento de cancelación", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void confirmOrderVerification(UUID orderId) {
+        log.info("✓ [VERIFICATION] Confirmando verificación de customer para orden: {}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        if (!OrderStatus.PENDING.equals(order.getStatus())) {
+            log.warn("✗ Orden no está en estado PENDING para confirmar: estado actual={}", order.getStatus());
+            throw new IllegalStateException(
+                "Solo se pueden confirmar órdenes en estado PENDING. " +
+                "Estado actual: " + order.getStatus());
+        }
+
+        log.info("✓ [VERIFICATION] Cambiando orden {} a CREATED (verificada)", orderId);
+        order.setStatus(OrderStatus.CREATED);
+        order.setSagaStep(SagaStep.VERIFIED);
+        orderRepository.save(order);
+        
+        // Publicar notificación de orden creada exitosamente
+        orderEventProducer.publishOrderConfirmedEvent(order);
     }
 
     /**
@@ -228,7 +293,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTripFee(tripFee);
         order.setServiceFee(serviceFee);
         order.setTotalAmount(totalAmount);
-        order.setStatus(OrderStatus.CREATED);
+        order.setStatus(OrderStatus.PENDING); // Esperando verificación de customer
     }
 
     // Clase utilitaria interna
@@ -291,5 +356,101 @@ public class OrderServiceImpl implements OrderService {
         private static boolean isValidCoordinate(double latitude, double longitude) {
             return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
         }
+    }
+
+    @Override
+    @Transactional
+    public void dropOrderDueToRejection(UUID orderId, String reason) {
+        log.info("✗ [REJECTION] Descartando orden por rechazo de verificación: orderId={}, reason={}", orderId, reason);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        order.setSagaStep(SagaStep.REJECTED);
+        order.setSagaReason(reason);
+        orderRepository.save(order);
+        
+        // Publicar notificación de rechazo
+        orderEventProducer.publishOrderRejectedEvent(orderId, order.getCustomerId(), reason);
+        
+        // Eliminar la orden
+        orderRepository.deleteById(orderId);
+        log.info("✓ Orden eliminada por rechazo: orderId={}", orderId);
+    }
+
+    @Override
+    @Transactional
+    public void dropOrderDueToTimeout(UUID orderId) {
+        log.warn("✗ [TIMEOUT] Cancelando orden por timeout en verificación: orderId={}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        order.setSagaStep(SagaStep.TIMEOUT);
+        order.setSagaReason("Timeout en verificación de cliente");
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+        
+        // Publicar notificación de timeout (como cancelled)
+        orderEventProducer.publishOrderTimeoutEvent(orderId, order.getCustomerId());
+        
+        log.info("✓ Orden cancelada por timeout: orderId={}", orderId);
+    }
+
+    @Override
+    @Transactional
+    public void confirmAssignmentVerification(UUID orderId) {
+        log.info("✓ [FLEET-VERIFICATION] Confirmando validación de asignación para orden: {}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        if (!OrderStatus.ASSIGNMENT_PENDING.equals(order.getStatus())) {
+            log.warn("✗ Orden no está en estado ASSIGNMENT_PENDING: estado actual={}", order.getStatus());
+            throw new IllegalStateException(
+                "Solo se pueden confirmar órdenes en estado ASSIGNMENT_PENDING. " +
+                "Estado actual: " + order.getStatus());
+        }
+
+        log.info("✓ [FLEET-VERIFICATION] Cambiando orden {} a ASSIGNED (asignación confirmada)", orderId);
+        order.setStatus(OrderStatus.ASSIGNED);
+        order.setSagaStep(SagaStep.ASSIGNMENT_VERIFIED);
+        orderRepository.save(order);
+        
+        // Publicar notificación de asignación exitosa
+        orderEventProducer.publishOrderAssignedEvent(order);
+    }
+
+    @Override
+    @Transactional
+    public void rejectAssignmentAndReturnToCreated(UUID orderId, String reason) {
+        log.warn("✗ [FLEET-VERIFICATION] Retornando orden a CREATED por fallo de validación: orderId={}, reason={}", 
+            orderId, reason);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado: " + orderId));
+
+        if (!OrderStatus.ASSIGNMENT_PENDING.equals(order.getStatus())) {
+            log.warn("✗ Orden no está en estado ASSIGNMENT_PENDING para revertir: estado actual={}", order.getStatus());
+            throw new IllegalStateException(
+                "Solo se pueden revertir órdenes en estado ASSIGNMENT_PENDING. " +
+                "Estado actual: " + order.getStatus());
+        }
+
+        log.info("✓ [FLEET-VERIFICATION] Revirtiendo asignación - retornando a CREATED: {}", orderId);
+        
+        // Limpiar los datos de asignación temporal
+        order.setDriverId(null);
+        order.setVehicleId(null);
+        
+        // Retornar a estado CREATED
+        order.setStatus(OrderStatus.CREATED);
+        order.setSagaReason(reason);
+        orderRepository.save(order);
+        
+        // Publicar notificación de fallo de asignación
+        orderEventProducer.publishAssignmentFailedEvent(orderId, order.getCustomerId(), reason);
+        
+        log.info("✓ Orden revertida a CREATED: orderId={}", orderId);
     }
 }

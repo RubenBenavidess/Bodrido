@@ -64,56 +64,66 @@ public class OrderNotificationListener : IOrderNotificationListener
             var body = ea.Body.ToArray();
             var message = Encoding.UTF8.GetString(body);
             
-            var notification = JsonSerializer.Deserialize<OrderNotificationEvent>(message);
+            _logger.LogInformation("Mensaje recibido de order-ms: {}", message);
             
-            if (notification == null)
+            var incomingEvent = JsonSerializer.Deserialize<IncomingOrderValidationRequest>(message, new JsonSerializerOptions
             {
-                _logger.LogWarning("No se pudo deserializar notificación");
+                PropertyNameCaseInsensitive = true
+            });
+            
+            if (incomingEvent == null || incomingEvent.OrderId == Guid.Empty)
+            {
+                _logger.LogWarning("No se pudo deserializar el evento de validación o OrderId es vacío");
                 _channel?.BasicAck(ea.DeliveryTag, false);
                 return;
             }
 
-            _logger.LogInformation("Notificación recibida: OrderId={}, Action={}", 
-                notification.OrderId, notification.Action);
+            _logger.LogInformation("Evento de validación recibido: OrderId={}, DriverId={}, VehicleId={}, ValidationType={}", 
+                incomingEvent.OrderId, incomingEvent.DriverId, incomingEvent.VehicleId, incomingEvent.ValidationType);
 
-            if (notification.Action == "assigned")
-            {
-                await ValidateAssignedResourcesAsync(notification);
-            }
-            else if (notification.Action == "cancelled")
-            {
-                await HandleOrderCancelledAsync(notification);
-            }
+            await ValidateAssignedResourcesAsync(incomingEvent);
 
             _channel?.BasicAck(ea.DeliveryTag, false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando evento de notificación");
+            _logger.LogError(ex, "Error procesando evento de validación");
             // Nack sin requeue para evitar loop infinito
             _channel?.BasicNack(ea.DeliveryTag, false, false);
         }
     }
 
-    private async Task ValidateAssignedResourcesAsync(OrderNotificationEvent notification)
+    private async Task ValidateAssignedResourcesAsync(IncomingOrderValidationRequest incomingEvent)
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<FleetContext>();
         var producer = scope.ServiceProvider.GetRequiredService<IOrderValidationProducer>();
 
-        var driverId = notification.Data.TryGetValue("driverId", out var driverIdObj) 
-            ? (Guid)driverIdObj 
-            : Guid.Empty;
-
-        var vehicleId = notification.Data.TryGetValue("vehicleId", out var vehicleIdObj) 
-            ? (Guid)vehicleIdObj 
-            : Guid.Empty;
+        var driverId = incomingEvent.DriverId;
+        
+        // vehicleId llega como string desde order-ms, parsearlo a Guid
+        Guid vehicleId;
+        if (!Guid.TryParse(incomingEvent.VehicleId, out vehicleId))
+        {
+            _logger.LogWarning("VehicleId inválido recibido: {}", incomingEvent.VehicleId);
+            var failEvent = new OrderValidationEvent
+            {
+                OrderId = incomingEvent.OrderId,
+                ValidationType = "resources_assigned",
+                Success = false,
+                ErrorMessage = $"VehicleId inválido: {incomingEvent.VehicleId}",
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
+            };
+            var failProducer = scope.ServiceProvider.GetRequiredService<IOrderValidationProducer>();
+            await failProducer.PublishValidationAsync(failEvent);
+            return;
+        }
 
         var validationEvent = new OrderValidationEvent
         {
-            OrderId = notification.OrderId,
+            OrderId = incomingEvent.OrderId,
             ValidationType = "resources_assigned",
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
         };
 
         // Usar transacción para garantizar atomicidad
@@ -173,7 +183,7 @@ public class OrderNotificationListener : IOrderNotificationListener
                     validationEvent.Success = true;
                     _logger.LogInformation(
                         "Validación exitosa - Recursos asignados y actualizados. OrderId={}, DriverId={}, VehicleId={}", 
-                        notification.OrderId, driverId, vehicleId);
+                        incomingEvent.OrderId, driverId, vehicleId);
                 }
             }
 
@@ -187,7 +197,7 @@ public class OrderNotificationListener : IOrderNotificationListener
             
             validationEvent.Success = false;
             validationEvent.ErrorMessage = $"Error validando recursos: {ex.Message}";
-            _logger.LogError(ex, "Error durante validación de recursos para OrderId={}", notification.OrderId);
+            _logger.LogError(ex, "Error durante validación de recursos para OrderId={}", incomingEvent.OrderId);
         }
 
         // Publicar resultado de validación (éxito o fallo)

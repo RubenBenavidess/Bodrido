@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -20,7 +21,7 @@ public class NotificationResponse {
     private String entityType;
     private UUID entityId;
     private String message;
-    private String data;
+    private Map<String, Object> data;
     private String severity;
     private LocalDateTime createdAt;
 }

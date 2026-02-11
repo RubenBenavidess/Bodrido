@@ -29,9 +29,23 @@ builder.Services.AddScoped<IVehicleService, VehicleService>();
 
 // Configurar RabbitMQ
 builder.ConfigureRabbitMQ();
+
+// ============== ORDER SERVICES ==============
 builder.Services.AddSingleton<IOrderValidationProducer, OrderValidationProducer>();
 builder.Services.AddSingleton<IOrderNotificationListener, OrderNotificationListener>();
 builder.Services.AddHostedService<OrderNotificationBackgroundService>();
+
+// ============== DRIVER SERVICES ==============
+builder.Services.AddSingleton<IDriverValidationProducer, DriverValidationProducer>();
+builder.Services.AddSingleton<IDriverValidationResultListener, DriverValidationResultListener>();
+builder.Services.AddSingleton<IDriverCompensationListener, DriverCompensationListener>();
+builder.Services.AddHostedService<DriverValidationResultBackgroundService>();
+builder.Services.AddHostedService<DriverCompensationBackgroundService>();
+builder.Services.AddHostedService<DriverValidationTimeoutJob>();
+
+// ============== DRIVER USER CREATED LISTENER (auth-ms → fleet-ms) ==============
+builder.Services.AddSingleton<IDriverUserCreatedListener, DriverUserCreatedListener>();
+builder.Services.AddHostedService<DriverUserCreatedBackgroundService>();
 
 // Configurar autenticación y autorización
 builder.Services.AddAuthentication(options =>

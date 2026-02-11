@@ -10,13 +10,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-    
+
     // Notificaciones internas
     public static final String EXCHANGE_NAME = "orders-notifications.exchange";
     public static final String QUEUE_NAME = "orders-notifications.queue";
     public static final String ROUTING_KEY = "orders-notifications.routingKey";
-
-
 
     // Publicar órdenes creadas para verificación en customer-ms
     public static final String ORDERS_VALIDATIONS_CUSTOMER_EXCHANGE = "orders-validations-customer.exchange";
@@ -32,7 +30,19 @@ public class RabbitMQConfig {
 
     public static final String ORDER_FLEET_VERIFICATION_RESULT_EXCHANGE = "order-fleet-verification-result.exchange";
     public static final String ORDER_FLEET_VERIFICATION_RESULT_QUEUE = "order-fleet.verification.result";
-    public static final String ORDER_FLEET_VERIFICATION_RESULT_ROUTING_KEY = "order-fleet.verification.result";;
+    public static final String ORDER_FLEET_VERIFICATION_RESULT_ROUTING_KEY = "order-fleet.verification.result";
+
+    // ==================== CANCELACIÓN: order-ms → fleet-ms ====================
+    // Reutilizamos el mismo exchange de validaciones fleet
+    // (orders-validations-fleet.exchange)
+    // pero con un validationType diferente ("CANCELLATION_VALIDATION")
+    // FleetService ya escucha en ese exchange → no necesitamos exchange nuevo.
+    // El resultado de fleet viene por el mismo canal:
+    // order-fleet-verification-result.exchange
+
+    // ==================== PICKUP: order-ms → fleet-ms ====================
+    // Mismo patrón: reutilizamos orders-validations-fleet.exchange con
+    // validationType "PICKUP_VALIDATION"
 
     @Bean
     public TopicExchange notificationExchange() {
@@ -46,7 +56,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding notificationBinding(
-            @Qualifier("notificationQueue") Queue queue, 
+            @Qualifier("notificationQueue") Queue queue,
             @Qualifier("notificationExchange") TopicExchange exchange) {
         return BindingBuilder.bind(queue)
                 .to(exchange)
@@ -65,7 +75,8 @@ public class RabbitMQConfig {
         return rabbitTemplate;
     }
 
-    // ==================== ORDERS VALIDATIONS CUSTOMER EXCHANGE ====================
+    // ==================== ORDERS VALIDATIONS CUSTOMER EXCHANGE
+    // ====================
     @Bean
     public TopicExchange ordersValidationsCustomerExchange() {
         return new TopicExchange(ORDERS_VALIDATIONS_CUSTOMER_EXCHANGE, true, false);

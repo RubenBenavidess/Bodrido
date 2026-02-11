@@ -26,7 +26,7 @@ import java.util.UUID;
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Order {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -60,6 +60,16 @@ public class Order {
 
     @Column(name = "assignment_saga_started_at")
     private LocalDateTime assignmentSagaStartedAt;
+
+    @Column(name = "cancellation_saga_started_at")
+    private LocalDateTime cancellationSagaStartedAt;
+
+    @Column(name = "pickup_saga_started_at")
+    private LocalDateTime pickupSagaStartedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "previous_status")
+    private OrderStatus previousStatus;
 
     @Column(name = "distance_km", precision = 10, scale = 2)
     private BigDecimal distanceKm;

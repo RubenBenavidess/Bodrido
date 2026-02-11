@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationEventListener {
 
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Escucha eventos de notificaciones ya construidas
@@ -49,6 +51,7 @@ public class NotificationEventListener {
                     .build();
 
             notificationRepository.save(notification);
+            messagingTemplate.convertAndSend("/topic/notifications", event);
 
             log.info(
                 "Notificación guardada correctamente: entityId={}, action={}",

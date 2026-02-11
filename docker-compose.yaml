@@ -213,6 +213,31 @@ services:
       - logiflow_network
 
   # ============================================
+  # GRAPHQL BFF (Apollo Server)
+  # ============================================
+  graphql-bff:
+    build:
+      context: ./graphql-bff
+      dockerfile: Dockerfile
+    container_name: logiflow_graphql_bff
+    restart: always
+    environment:
+      PORT: 4001
+      ORDER_SERVICE_URL: http://order-service:8080
+      FLEET_SERVICE_URL: http://fleet-service:8080
+      HTTP_TIMEOUT: 5000
+      JWT_PUBLIC_KEY_PATH: /app/keys/ec_public.pem
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./auth-ms/keys/ec_public.pem:/app/keys/ec_public.pem:ro
+    depends_on:
+      - order-service
+      - fleet-service
+    networks:
+      - logiflow_network
+
+  # ============================================
   # KONG API GATEWAY
   # ============================================
   kong:
@@ -238,6 +263,7 @@ services:
       - order-service
       - billing-service
       - notification-service
+      - graphql-bff
     networks:
       - logiflow_network
 

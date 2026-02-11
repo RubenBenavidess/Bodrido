@@ -83,3 +83,16 @@ services:
         config:
           minute: 100
           policy: local
+
+  - name: graphql-bff
+    url: http://graphql-bff:4001
+    routes:
+      - name: graphql-route
+        paths:
+          - /api/graphql
+        strip_path: true
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: local

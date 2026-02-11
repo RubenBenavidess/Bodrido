@@ -4,6 +4,7 @@ using FleetService.Config;
 using FleetService.Data;
 using FleetService.Models;
 using FleetService.Models.Events;
+using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -78,10 +79,27 @@ public class OrderNotificationListener : IOrderNotificationListener
                 return;
             }
 
-            _logger.LogInformation("Evento de validación recibido: OrderId={}, DriverId={}, VehicleId={}, ValidationType={}", 
+            _logger.LogInformation("Evento recibido: OrderId={}, DriverId={}, VehicleId={}, ValidationType={}", 
                 incomingEvent.OrderId, incomingEvent.DriverId, incomingEvent.VehicleId, incomingEvent.ValidationType);
 
-            await ValidateAssignedResourcesAsync(incomingEvent);
+            // Dispatch por tipo de validación
+            switch (incomingEvent.ValidationType?.ToUpper())
+            {
+                case "ASSIGNMENT_VALIDATION":
+                    await ValidateAssignedResourcesAsync(incomingEvent);
+                    break;
+                case "CANCELLATION_VALIDATION":
+                    await HandleCancellationValidationAsync(incomingEvent);
+                    break;
+                case "PICKUP_VALIDATION":
+                    await HandlePickupValidationAsync(incomingEvent);
+                    break;
+                default:
+                    _logger.LogWarning("ValidationType desconocido: {}. Intentando como ASSIGNMENT_VALIDATION.", 
+                        incomingEvent.ValidationType);
+                    await ValidateAssignedResourcesAsync(incomingEvent);
+                    break;
+            }
 
             _channel?.BasicAck(ea.DeliveryTag, false);
         }
@@ -92,6 +110,8 @@ public class OrderNotificationListener : IOrderNotificationListener
             _channel?.BasicNack(ea.DeliveryTag, false, false);
         }
     }
+
+    // ==================== ASSIGNMENT VALIDATION ====================
 
     private async Task ValidateAssignedResourcesAsync(IncomingOrderValidationRequest incomingEvent)
     {
@@ -114,8 +134,7 @@ public class OrderNotificationListener : IOrderNotificationListener
                 ErrorMessage = $"VehicleId inválido: {incomingEvent.VehicleId}",
                 Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
             };
-            var failProducer = scope.ServiceProvider.GetRequiredService<IOrderValidationProducer>();
-            await failProducer.PublishValidationAsync(failEvent);
+            await producer.PublishValidationAsync(failEvent);
             return;
         }
 
@@ -204,70 +223,197 @@ public class OrderNotificationListener : IOrderNotificationListener
         await producer.PublishValidationAsync(validationEvent);
     }
 
+    // ==================== CANCELLATION VALIDATION ====================
+
     /// <summary>
-    /// Maneja la cancelación de una orden y revierte los cambios en conductor y vehículo
+    /// Maneja la solicitud de cancelación desde order-ms.
+    /// Libera el conductor (BUSY → AVAILABLE) y el vehículo (IsAssigned = false).
+    /// Publica resultado de vuelta a order-ms.
     /// </summary>
-    private async Task HandleOrderCancelledAsync(OrderNotificationEvent notification)
+    private async Task HandleCancellationValidationAsync(IncomingOrderValidationRequest incomingEvent)
     {
+        _logger.LogInformation("► [CANCELLATION] Procesando solicitud de cancelación: OrderId={}, DriverId={}, VehicleId={}",
+            incomingEvent.OrderId, incomingEvent.DriverId, incomingEvent.VehicleId);
+
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<FleetContext>();
+        var producer = scope.ServiceProvider.GetRequiredService<IOrderValidationProducer>();
 
-        var driverId = notification.Data.TryGetValue("driverId", out var driverIdObj) 
-            ? (Guid)driverIdObj 
-            : Guid.Empty;
+        var validationEvent = new OrderValidationEvent
+        {
+            OrderId = incomingEvent.OrderId,
+            ValidationType = "cancellation_result",
+            Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
+        };
 
-        var vehicleId = notification.Data.TryGetValue("vehicleId", out var vehicleIdObj) 
-            ? (Guid)vehicleIdObj 
-            : Guid.Empty;
+        Guid vehicleId;
+        var hasValidVehicleId = Guid.TryParse(incomingEvent.VehicleId, out vehicleId);
 
-        // Usar transacción para garantizar atomicidad
         using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
-            // Si los IDs son válidos, revertir los cambios
-            if (driverId != Guid.Empty && vehicleId != Guid.Empty)
-            {
-                var driver = await context.Drivers.FindAsync(driverId);
-                var vehicle = await context.Vehicles.FindAsync(vehicleId);
+            var driver = await context.Drivers.FindAsync(incomingEvent.DriverId);
+            Vehicle? vehicle = hasValidVehicleId ? await context.Vehicles.FindAsync(vehicleId) : null;
 
-                if (driver != null)
+            bool resourcesFreed = false;
+
+            // Liberar conductor
+            if (driver != null)
+            {
+                if (driver.Status == DriverStatus.BUSY)
                 {
                     driver.Status = DriverStatus.AVAILABLE;
                     context.Drivers.Update(driver);
-                    _logger.LogInformation("Conductor {} revertido a AVAILABLE por cancelación de orden {}", 
-                        driverId, notification.OrderId);
+                    _logger.LogInformation("✓ [CANCELLATION] Conductor {} liberado (BUSY → AVAILABLE)", incomingEvent.DriverId);
+                    resourcesFreed = true;
                 }
+                else
+                {
+                    _logger.LogWarning("⚠ [CANCELLATION] Conductor {} no estaba BUSY (estado: {}). Continuando.", 
+                        incomingEvent.DriverId, driver.Status);
+                    // Aún así permitimos la cancelación - el conductor podría haber sido liberado por otro proceso
+                    resourcesFreed = true;
+                }
+            }
+            else
+            {
+                _logger.LogWarning("⚠ [CANCELLATION] Conductor {} no encontrado. Continuando cancelación.", incomingEvent.DriverId);
+                resourcesFreed = true; // Continuamos - el conductor podría haber sido eliminado
+            }
 
-                if (vehicle != null)
+            // Liberar vehículo
+            if (vehicle != null)
+            {
+                if (vehicle.IsAssigned)
                 {
                     vehicle.IsAssigned = false;
                     vehicle.UpdatedAt = DateTime.UtcNow;
                     context.Vehicles.Update(vehicle);
-                    _logger.LogInformation("Vehículo {} revertido a disponible por cancelación de orden {}", 
-                        vehicleId, notification.OrderId);
+                    _logger.LogInformation("✓ [CANCELLATION] Vehículo {} liberado (IsAssigned = false)", vehicleId);
                 }
-
-                if (driver != null || vehicle != null)
+                else
                 {
-                    await context.SaveChangesAsync();
+                    _logger.LogWarning("⚠ [CANCELLATION] Vehículo {} ya no estaba asignado. Continuando.", vehicleId);
                 }
             }
+            else if (hasValidVehicleId)
+            {
+                _logger.LogWarning("⚠ [CANCELLATION] Vehículo {} no encontrado. Continuando cancelación.", vehicleId);
+            }
 
-            // Confirmar transacción
-            await transaction.CommitAsync();
-            
-            _logger.LogInformation("Orden {} cancelada exitosamente. Recursos liberados.", 
-                notification.OrderId);
+            if (resourcesFreed)
+            {
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                validationEvent.Success = true;
+                _logger.LogInformation("✓ [CANCELLATION] Recursos liberados exitosamente para OrderId={}", incomingEvent.OrderId);
+            }
+            else
+            {
+                await transaction.RollbackAsync();
+                validationEvent.Success = false;
+                validationEvent.ErrorMessage = "No se pudieron liberar los recursos";
+                _logger.LogError("✗ [CANCELLATION] No se pudieron liberar recursos para OrderId={}", incomingEvent.OrderId);
+            }
         }
         catch (Exception ex)
         {
-            // Revertir transacción en caso de error
             await transaction.RollbackAsync();
-            
-            _logger.LogError(ex, 
-                "Error revirtiendo asignación de recursos para orden cancelada: OrderId={}", 
-                notification.OrderId);
-            throw;
+            validationEvent.Success = false;
+            validationEvent.ErrorMessage = $"Error liberando recursos: {ex.Message}";
+            _logger.LogError(ex, "✗ [CANCELLATION] Error durante liberación de recursos para OrderId={}", incomingEvent.OrderId);
         }
+
+        await producer.PublishValidationAsync(validationEvent);
+    }
+
+    // ==================== PICKUP VALIDATION ====================
+
+    /// <summary>
+    /// Maneja la solicitud de validación de pickup desde order-ms.
+    /// Verifica que el conductor sigue BUSY y el vehículo sigue asignado.
+    /// </summary>
+    private async Task HandlePickupValidationAsync(IncomingOrderValidationRequest incomingEvent)
+    {
+        _logger.LogInformation("► [PICKUP] Procesando validación de pickup: OrderId={}, DriverId={}, VehicleId={}",
+            incomingEvent.OrderId, incomingEvent.DriverId, incomingEvent.VehicleId);
+
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<FleetContext>();
+        var producer = scope.ServiceProvider.GetRequiredService<IOrderValidationProducer>();
+
+        var validationEvent = new OrderValidationEvent
+        {
+            OrderId = incomingEvent.OrderId,
+            ValidationType = "pickup_result",
+            Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
+        };
+
+        Guid vehicleId;
+        if (!Guid.TryParse(incomingEvent.VehicleId, out vehicleId))
+        {
+            validationEvent.Success = false;
+            validationEvent.ErrorMessage = $"VehicleId inválido: {incomingEvent.VehicleId}";
+            await producer.PublishValidationAsync(validationEvent);
+            return;
+        }
+
+        try
+        {
+            // Validar conductor
+            var driver = await context.Drivers.FindAsync(incomingEvent.DriverId);
+            if (driver == null)
+            {
+                validationEvent.Success = false;
+                validationEvent.ErrorMessage = $"Conductor no encontrado: {incomingEvent.DriverId}";
+                _logger.LogWarning("✗ [PICKUP] Conductor no encontrado: {}", incomingEvent.DriverId);
+            }
+            else if (driver.Status != DriverStatus.BUSY)
+            {
+                validationEvent.Success = false;
+                validationEvent.ErrorMessage = $"Conductor no está BUSY (estado: {driver.Status}). No puede hacer pickup.";
+                _logger.LogWarning("✗ [PICKUP] Conductor {} no está BUSY (estado: {})", incomingEvent.DriverId, driver.Status);
+            }
+            else
+            {
+                // Validar vehículo
+                var vehicle = await context.Vehicles.FindAsync(vehicleId);
+                if (vehicle == null)
+                {
+                    validationEvent.Success = false;
+                    validationEvent.ErrorMessage = $"Vehículo no encontrado: {vehicleId}";
+                    _logger.LogWarning("✗ [PICKUP] Vehículo no encontrado: {}", vehicleId);
+                }
+                else if (!vehicle.IsAssigned)
+                {
+                    validationEvent.Success = false;
+                    validationEvent.ErrorMessage = $"Vehículo no está asignado: {vehicleId}";
+                    _logger.LogWarning("✗ [PICKUP] Vehículo {} no está asignado", vehicleId);
+                }
+                else if (vehicle.Condition != VehicleCondition.OPERATIONAL)
+                {
+                    validationEvent.Success = false;
+                    validationEvent.ErrorMessage = $"Vehículo no operacional: {vehicle.Condition}";
+                    _logger.LogWarning("✗ [PICKUP] Vehículo {} no operacional: {}", vehicleId, vehicle.Condition);
+                }
+                else
+                {
+                    // ✅ PICKUP VALIDADO: Conductor BUSY + Vehículo asignado + Operacional
+                    validationEvent.Success = true;
+                    _logger.LogInformation(
+                        "✓ [PICKUP] Validación exitosa. Conductor BUSY, Vehículo asignado y operacional. OrderId={}",
+                        incomingEvent.OrderId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            validationEvent.Success = false;
+            validationEvent.ErrorMessage = $"Error validando pickup: {ex.Message}";
+            _logger.LogError(ex, "✗ [PICKUP] Error durante validación de pickup para OrderId={}", incomingEvent.OrderId);
+        }
+
+        await producer.PublishValidationAsync(validationEvent);
     }
 }

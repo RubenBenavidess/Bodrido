@@ -206,6 +206,79 @@ public class OrderEventProducer {
                 data);
     }
 
+    /**
+     * Publica solicitud de cancelación a fleet-ms para liberar conductor y
+     * vehículo.
+     * FleetService debe verificar y liberar los recursos, luego responder con
+     * éxito/fallo.
+     */
+    public void publishCancellationValidationEvent(Order order) {
+        OrderValidationEvent event = OrderValidationEvent.builder()
+                .orderId(order.getId())
+                .driverId(order.getDriverId())
+                .vehicleId(order.getVehicleId())
+                .validationType("CANCELLATION_VALIDATION")
+                .sourceService("order-ms")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.ORDERS_VALIDATIONS_FLEET_EXCHANGE,
+                    RabbitMQConfig.ORDERS_VALIDATIONS_FLEET_ROUTING_KEY,
+                    event);
+            log.info("✓ Evento de cancelación publicado para fleet-ms: orderId={}, driverId={}, vehicleId={}",
+                    order.getId(), order.getDriverId(), order.getVehicleId());
+        } catch (Exception e) {
+            log.error("✗ Error publicando evento de cancelación para fleet-ms: orderId={}", order.getId(), e);
+            throw new RuntimeException("Error al solicitar liberación de recursos para cancelación", e);
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", order.getId());
+        data.put("driverId", order.getDriverId());
+        data.put("vehicleId", order.getVehicleId());
+        data.put("status", order.getStatus().toString());
+        sendNotification(order.getId(), "cancellation_requested",
+                "Solicitando liberación de conductor y vehículo para cancelación", data);
+    }
+
+    /**
+     * Publica solicitud de validación de pickup a fleet-ms.
+     * FleetService debe verificar que el conductor y vehículo siguen
+     * BUSY/asignados.
+     */
+    public void publishPickupValidationEvent(Order order) {
+        OrderValidationEvent event = OrderValidationEvent.builder()
+                .orderId(order.getId())
+                .driverId(order.getDriverId())
+                .vehicleId(order.getVehicleId())
+                .validationType("PICKUP_VALIDATION")
+                .sourceService("order-ms")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.ORDERS_VALIDATIONS_FLEET_EXCHANGE,
+                    RabbitMQConfig.ORDERS_VALIDATIONS_FLEET_ROUTING_KEY,
+                    event);
+            log.info("✓ Evento de validación de pickup publicado para fleet-ms: orderId={}, driverId={}, vehicleId={}",
+                    order.getId(), order.getDriverId(), order.getVehicleId());
+        } catch (Exception e) {
+            log.error("✗ Error publicando evento de validación de pickup para fleet-ms: orderId={}", order.getId(), e);
+            throw new RuntimeException("Error al solicitar validación de pickup", e);
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", order.getId());
+        data.put("driverId", order.getDriverId());
+        data.put("vehicleId", order.getVehicleId());
+        data.put("status", order.getStatus().toString());
+        sendNotification(order.getId(), "pickup_validation_requested",
+                "Solicitando validación de pickup con fleet-ms", data);
+    }
+
     // ----------------------------------------
     // PUBLISH CUSTOMER VALIDATIONS
     // ----------------------------------------

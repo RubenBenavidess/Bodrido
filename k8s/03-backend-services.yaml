@@ -34,7 +34,7 @@ spec:
           value: logiflow_auth
         - name: RABBITMQ_HOST
           value: rabbitmq
-        - name: RABBITMQ_PORT
+        - name: RABBITMQ_SVC_PORT
           value: "5672"
         - name: RABBITMQ_USER
           value: guest
@@ -234,12 +234,19 @@ spec:
           value: bodrido_notification_db
         - name: RABBITMQ_HOST
           value: rabbitmq
+        - name: RABBITMQ_SVC_PORT
+          value: "5672"
+        - name: RABBITMQ_USER
+          value: guest
+        - name: RABBITMQ_PASSWORD
+          value: guest
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
 spec:
+  type: LoadBalancer
   selector:
     app: notification-service
   ports:

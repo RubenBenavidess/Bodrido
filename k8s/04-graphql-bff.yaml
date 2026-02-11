@@ -42,6 +42,7 @@ kind: Service
 metadata:
   name: graphql-bff
 spec:
+  type: LoadBalancer
   selector:
     app: graphql-bff
   ports:

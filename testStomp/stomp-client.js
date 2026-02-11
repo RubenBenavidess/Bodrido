@@ -1,13 +1,13 @@
 const { Client } = require('@stomp/stompjs');
 const WebSocket = require('ws');
 
-const TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJydWJlbkFkbWluIiwidXNlcl9pZCI6IjQ2ZDc2YWYwLWVkNDctNGY2Mi04OTFhLTcyOGRlYWQ0NmU4NSIsInJvbGUiOiJBRE1JTiIsInNjb3BlIjoib3JkZXI6dmlldyBvcmRlcjp2aWV3X293biBvcmRlcjpjcmVhdGUgb3JkZXI6dXBkYXRlIG9yZGVyOnZpZXdfbm9waWNrZWQgZmxlZXQ6Y3JlYXRlIGZsZWV0OnVwZGF0ZSBmbGVldDp2aWV3Iiwiem9uZV9pZCI6bnVsbCwiZmxlZXRfdHlwZSI6bnVsbCwiaWF0IjoxNzcwNzg2ODI1LCJleHAiOjE3NzA3OTA0MjV9.zAzEMWXcNtcgosxezrJUIZtoLivLuEOIkoVd0LxoyP7HDH-TuVXptM5fRtAsuqGGguD1K8xS2G4rDwz7Eh9RYw";
+const TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2FuQ2xpZW50IiwidXNlcl9pZCI6ImE3YTYwMzVhLTg5NjYtNDZmNC1iNzdjLTI1NjY2ZWY4MTVmOSIsInJvbGUiOiJDTElFTlQiLCJzY29wZSI6Im9yZGVyOmNyZWF0ZSBvcmRlcjp2aWV3X293biIsInpvbmVfaWQiOm51bGwsImZsZWV0X3R5cGUiOm51bGwsImlhdCI6MTc3MDgyMDI4NSwiZXhwIjoxNzcwODIzODg1fQ.zA3NX3O_dvTTmbraw42G9W3ejnFFzg2P1ADsTZzB987IetCffTW3Xkjb9mvKrRks3Hu3ELoKqnxA-fuqBvmYqQ";
 
 const client = new Client({
 
     webSocketFactory: () => {
         return new WebSocket(
-            'ws://localhost:8082/ws-notifications',
+            'ws://10.101.77.106:8082/ws-notifications',
             {
                 headers: {
                     Authorization: `Bearer ${TOKEN}`

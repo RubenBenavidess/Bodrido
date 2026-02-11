@@ -1,0 +1,227 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-db
+spec:
+  selector:
+    matchLabels:
+      app: auth-db
+  template:
+    metadata:
+      labels:
+        app: auth-db
+    spec:
+      containers:
+      - name: auth-db
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: admin123
+        - name: POSTGRES_DB
+          value: logiflow_auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: auth-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-db
+spec:
+  selector:
+    matchLabels:
+      app: fleet-db
+  template:
+    metadata:
+      labels:
+        app: fleet-db
+    spec:
+      containers:
+      - name: fleet-db
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: fleetUser
+        - name: POSTGRES_PASSWORD
+          value: fleetPass123
+        - name: POSTGRES_DB
+          value: FleetDB
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fleet-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: fleet-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-db
+spec:
+  selector:
+    matchLabels:
+      app: order-db
+  template:
+    metadata:
+      labels:
+        app: order-db
+    spec:
+      containers:
+      - name: order-db
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_DB
+          value: bodrido_orders_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: order-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-db
+spec:
+  selector:
+    matchLabels:
+      app: billing-db
+  template:
+    metadata:
+      labels:
+        app: billing-db
+    spec:
+      containers:
+      - name: billing-db
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_DB
+          value: bodrido_billing_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: billing-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-db
+spec:
+  selector:
+    matchLabels:
+      app: notification-db
+  template:
+    metadata:
+      labels:
+        app: notification-db
+    spec:
+      containers:
+      - name: notification-db
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_DB
+          value: bodrido_notification_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: notification-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-db
+spec:
+  selector:
+    matchLabels:
+      app: customer-db
+  template:
+    metadata:
+      labels:
+        app: customer-db
+    spec:
+      containers:
+      - name: customer-db
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_DB
+          value: bodrido_customer_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-db
+spec:
+  type: LoadBalancer
+  selector:
+    app: customer-db
+  ports:
+  - port: 5432
+    targetPort: 5432

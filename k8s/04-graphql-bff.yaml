@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-bff
+spec:
+  selector:
+    matchLabels:
+      app: graphql-bff
+  template:
+    metadata:
+      labels:
+        app: graphql-bff
+    spec:
+      containers:
+      - name: graphql-bff
+        image: graphql-bff:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 4001
+        env:
+        - name: PORT
+          value: "4001"
+        - name: ORDER_SERVICE_URL
+          value: http://order-service:8080
+        - name: FLEET_SERVICE_URL
+          value: http://fleet-service:8080
+        - name: HTTP_TIMEOUT
+          value: "5000"
+        - name: JWT_PUBLIC_KEY_PATH
+          value: /app/keys/ec_public.pem
+        volumeMounts:
+        - name: keys-volume
+          mountPath: /app/keys
+          readOnly: true
+      volumes:
+      - name: keys-volume
+        secret:
+          secretName: logiflow-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graphql-bff
+spec:
+  selector:
+    app: graphql-bff
+  ports:
+  - port: 4001
+    targetPort: 4001
